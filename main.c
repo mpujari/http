@@ -38,9 +38,9 @@
 
 #include "http.h"
 
-#define	HTTP	0
-#define HTTPS	1
-#define FTP	2
+#define	S_HTTP	0
+#define S_HTTPS	1
+#define S_FTP	2
 const char	*scheme_str[] = { "http", "https", "ftp" };
 
 static void	child(int, int, char **);
@@ -292,11 +292,11 @@ static void
 url_connect(struct url *url)
 {
 	switch (url->scheme) {
-	case HTTP:
-	case HTTPS:
+	case S_HTTP:
+	case S_HTTPS:
 		http_connect(url);
 		break;
-	case FTP:
+	case S_FTP:
 		ftp_connect(url);
 		break;
 	}
@@ -307,11 +307,11 @@ url_request(struct url *url)
 {
 	log_request(url);
 	switch (url->scheme) {
-	case HTTP:
-	case HTTPS:
+	case S_HTTP:
+	case S_HTTPS:
 		http_get(url);
 		break;
-	case FTP:
+	case S_FTP:
 		break;
 	}
 }
@@ -333,11 +333,11 @@ url_save(struct url *url, int fd)
 		start_progress_meter(url->fname, url->file_sz, &url->offset);
 
 	switch (url->scheme) {
-	case HTTP:
-	case HTTPS:
+	case S_HTTP:
+	case S_HTTPS:
 		http_save(url, fd);
 		break;
-	case FTP:
+	case S_FTP:
 		ftp_save(url, fd);
 		break;
 	}
@@ -393,7 +393,7 @@ env_parse(void)
 		err(1, "%s: malloc", __func__);
 
 	url_parse(proxy, proxy_str);
-	if (proxy->scheme != HTTP)
+	if (proxy->scheme != S_HTTP)
 		errx(1, "Invalid proxy scheme: %s", proxy_str);
 
 	if (proxy->port[0] == '\0')
@@ -411,17 +411,17 @@ url_parse(struct url *url, const char *url_str)
 	/* Determine the scheme */
 	if ((t = strstr(url_str, "://")) != NULL) {
 		if (strncasecmp(url_str, "http://", 7) == 0)
-			url->scheme = HTTP;
+			url->scheme = S_HTTP;
 		else if (strncasecmp(url_str, "https://", 8) == 0)
-			url->scheme = HTTPS;
+			url->scheme = S_HTTPS;
 		else if (strncasecmp(url_str, "ftp://", 6) == 0)
-			url->scheme = FTP;
+			url->scheme = S_FTP;
 		else
 			errx(1, "%s: Invalid scheme %s", __func__, url_str);
 
 		url_str = t + strlen("://");
 	} else
-		url->scheme = HTTP;	/* default to HTTP */
+		url->scheme = S_HTTP;	/* default to HTTP */
 
 	/* Prepare Basic Auth of credentials if present */
 	if ((t = strchr(url_str, '@')) != NULL) {
@@ -468,13 +468,13 @@ log_request(struct url *url)
 	int	custom_port = 0;
 
 	switch (url->scheme) {
-	case HTTP:
+	case S_HTTP:
 		custom_port = strcmp(url->port, "80") ? 1 : 0;
 		break;
-	case HTTPS:
+	case S_HTTPS:
 		custom_port = strcmp(url->port, "443") ? 1 : 0;
 		break;
-	case FTP:
+	case S_FTP:
 		custom_port = strcmp(url->port, "21") ? 1 : 0;
 		break;
 	}
@@ -489,7 +489,7 @@ log_request(struct url *url)
 		    url->path ? url->path : "",
 
 		    /* via proxy part */
-		    (proxy->scheme == HTTP) ? "http" : "https",
+		    (proxy->scheme == S_HTTP) ? "http" : "https",
 		    proxy->host,
 		    proxy->port[0] ? ":" : "",
 		    proxy->port[0] ? proxy->port : "");
