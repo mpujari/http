@@ -47,7 +47,7 @@ const char	*scheme_str[] = { "http", "https", "ftp", "file" };
 static void	child(int, int, char **);
 static void	env_parse(void);
 static void	file_save(struct url *, int);
-static off_t	file_stat(struct url *);
+static off_t	file_stat(const char *);
 static int	fd_request(const char *, int flags);
 static int	parent(int, pid_t, int, char **);
 static int	read_message(struct imsgbuf *, struct imsg *, pid_t);
@@ -177,7 +177,7 @@ parent(int sock, pid_t child_pid, int argc, char **argv)
 		switch (imsg.hdr.type) {
 		case IMSG_STAT:
 			fn = imsg.data;
-			offset = 0;
+			offset = -1;
 			if (stat(fn, &sb) == 0)
 				offset = sb.st_size;
 			send_message(&ibuf, IMSG_STAT, &offset,
@@ -248,7 +248,7 @@ child(int sock, int argc, char **argv)
 		url_connect(&url);
 		url.offset = 0;
 		if (resume)
-			if ((url.offset = file_stat(&url)) == -1)
+			if ((url.offset = file_stat(url.fname)) == -1)
 				break;
 
 		url_request(&url);
@@ -267,13 +267,13 @@ child(int sock, int argc, char **argv)
 }
 
 static off_t
-file_stat(struct url *url)
+file_stat(const char *fname)
 {
 	off_t	*poffset;
 	size_t	 len;
 
-	len = strlen(url->fname) + 1;
-	send_message(&child_ibuf, IMSG_STAT, (char *)url->fname, len, -1);
+	len = strlen(fname) + 1;
+	send_message(&child_ibuf, IMSG_STAT, (char *)fname, len, -1);
 	if (read_message(&child_ibuf, &child_imsg, getppid()) == 0)
 		return -1;
 
@@ -336,7 +336,8 @@ url_request(struct url *url)
 	case S_FTP:
 		break;
 	case S_FILE:
-		url->file_sz = file_stat(url);
+		if ((url->file_sz = file_stat(url->path)) == -1)
+			errx(1, "Can't open file %s", url->path);
 		break;
 	}
 }
