@@ -137,6 +137,7 @@ done:
 	if (http_debug)
 		fprintf(stderr, ">>> %s", (char *)buf);
 
+	/* strip \r\n */
 	*(p - 1) = '\0';
 	n--;
 	if (*(p - 2) == '\r') {
