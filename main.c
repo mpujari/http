@@ -45,6 +45,7 @@ const char	*scheme_str[] = { "http", "https", "ftp" };
 
 static void	child(int, int, char **);
 static void	env_parse(void);
+static int	fd_request(const char *, int flags);
 static int	parent(int, pid_t, int, char **);
 static int	read_message(struct imsgbuf *, struct imsg *, pid_t);
 static void	send_message(struct imsgbuf *, int, void *, size_t, int);
@@ -60,18 +61,20 @@ enum {
 
 struct open_req {
 	char	fname[FILENAME_MAX];
-	int	append;
+	int	flags;
 };
 
 const char	*ua = "OpenBSD http";
 struct url	*proxy;
 int		 http_debug;
 
-static char	*oarg;
-static char	*tls_options;
-static int	 resume;
-static int	 progressmeter = 1;
-static int	 verbose = 1;
+static struct imsgbuf	 child_ibuf;
+static struct imsg	 child_imsg;
+static char		*oarg;
+static char		*tls_options;
+static int		 resume;
+static int		 progressmeter = 1;
+static int		 verbose = 1;
 
 int
 main(int argc, char **argv)
@@ -185,10 +188,8 @@ parent(int sock, pid_t child_pid, int argc, char **argv)
 			if (strcmp(req->fname, "-") == 0)
 				fd = STDOUT_FILENO;
 			else {
-				flags = O_CREAT | O_WRONLY;
-				if (req->append)
-					flags  |= O_APPEND;
-				if ((fd = open(req->fname, flags, 0666)) == -1)
+				fd = open(req->fname, req->flags, 0666);
+				if (fd == -1)
 					err(1, "open %s", req->fname);
 			}
 			send_message(&ibuf, IMSG_OPEN, NULL, 0, fd);
@@ -211,14 +212,11 @@ parent(int sock, pid_t child_pid, int argc, char **argv)
 static void
 child(int sock, int argc, char **argv)
 {
-	struct imsgbuf	 ibuf;
-	struct imsg	 imsg;
 	struct url	 url;
-	struct open_req	 req;
 	char		*str;
-	size_t		 flen;
+	size_t		 len;
 	off_t		*poff;
-	int		 i;
+	int		 fd, flags, i, r;
 
 	/* XXX libtls will provide hook to preload cert.pem, then drop rpath */
 	if (progressmeter) {
@@ -229,7 +227,7 @@ child(int sock, int argc, char **argv)
 			err(1, "pledge");
 	}
 
-	imsg_init(&ibuf, sock);
+	imsg_init(&child_ibuf, sock);
 	for (i = 0; i < argc; i++) {
 		str = url_encode(argv[i]);
 		memset(&url, 0, sizeof url);
@@ -246,46 +244,61 @@ child(int sock, int argc, char **argv)
 
 		url_connect(&url);
 
-		flen = strlen(url.fname) + 1;
+		len = strlen(url.fname) + 1;
 		url.offset = 0;
 		if (resume) {
-			send_message(&ibuf, IMSG_STAT, (char *)url.fname,
-			    flen, -1);
-			if (read_message(&ibuf, &imsg, getppid()) == 0)
+			send_message(&child_ibuf, IMSG_STAT,
+			    (char *)url.fname, len, -1);
+			r = read_message(&child_ibuf, &child_imsg, getppid());
+			if (r == 0)
 				break;
 
-			if (imsg.hdr.type != IMSG_STAT)
+			if (child_imsg.hdr.type != IMSG_STAT)
 				errx(1, "%s: IMSG_STAT expected", __func__);
 
-			if (imsg.hdr.len - IMSG_HEADER_SIZE != sizeof(off_t))
+			len = child_imsg.hdr.len - IMSG_HEADER_SIZE;
+			if (len != sizeof(off_t))
 				errx(1, "%s: imsg size mismatch", __func__);
 
-			poff = imsg.data;
+			poff = child_imsg.data;
 			url.offset = *poff;
 		}
 
 		url_request(&url);
-		if (strlcpy(req.fname, url.fname,
-		    sizeof req.fname) >= sizeof req.fname)
-			errx(1, "%s: filename overflow", __func__);
-
-		req.append = url.offset ? 1 : 0;
-		send_message(&ibuf, IMSG_OPEN, &req, sizeof req, -1);
-		if (read_message(&ibuf, &imsg, getppid()) == 0)
+		flags = O_CREAT | O_WRONLY;
+		if (url.offset)
+			flags |= O_APPEND;
+		if ((fd = fd_request(url.fname, flags)) == -1)
 			break;
 
-		if (imsg.hdr.type != IMSG_OPEN)
-			errx(1, "%s: IMSG_OPEN expected", __func__);
-
-		if (imsg.fd == -1)
-			errx(1, "%s: expected a file descriptor", __func__);
-
-		url_save(&url, imsg.fd);
+		url_save(&url, fd);
 		free((void *)url.path);
-		imsg_free(&imsg);
+		imsg_free(&child_imsg);
 	}
 
 	exit(0);
+}
+
+static int
+fd_request(const char *fname, int flags)
+{
+	struct open_req	req;
+
+	if (strlcpy(req.fname, fname, sizeof req.fname) >= sizeof req.fname)
+		errx(1, "%s: filename overflow", __func__);
+
+	req.flags = flags;
+	send_message(&child_ibuf, IMSG_OPEN, &req, sizeof req, -1);
+	if (read_message(&child_ibuf, &child_imsg, getppid()) == 0)
+		return -1;
+
+	if (child_imsg.hdr.type != IMSG_OPEN)
+		errx(1, "%s: IMSG_OPEN expected", __func__);
+
+	if (child_imsg.fd == -1)
+		errx(1, "%s: expected a file descriptor", __func__);
+
+	return child_imsg.fd;
 }
 
 static void
