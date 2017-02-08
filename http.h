@@ -17,6 +17,7 @@
 
 #define MAX_LINE	4096
 #define TMPBUF_LEN	131072
+
 struct tls;
 
 struct url {
@@ -51,6 +52,7 @@ ssize_t	tls_readline(struct tls *, char *, size_t);
 ssize_t	tls_vwriteline(struct tls *, const char *, va_list);
 
 /* main.c */
+extern char		 tmp_buf[TMPBUF_LEN];
 extern const char	*ua;
 extern struct url	*proxy;
 extern int		 http_debug;

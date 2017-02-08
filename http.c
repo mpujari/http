@@ -235,25 +235,18 @@ void
 http_save(struct url *url, int fd)
 {
 	FILE		*fp;
-	static char	*buf;
 	ssize_t		 r;
-
-	/* allocate once */
-	if (buf == NULL)
-		if ((buf = malloc(TMPBUF_LEN)) == NULL)
-			err(1, "%s: malloc", __func__);
-
-	url->offset += buffer_drain(fd);
 
 	if ((fp = fdopen(fd, "w")) == NULL)
 		err(1, "%s: fdopen", __func__);
 
-	while ((r = read(sock, buf, TMPBUF_LEN)) != 0) {
+	url->offset += buffer_drain(fd);
+	while ((r = read(sock, tmp_buf, TMPBUF_LEN)) != 0) {
 		if (r == -1)
 			err(1, "%s: read", __func__);
 
 		url->offset += r;
-		if (fwrite(buf, r, 1, fp) != 1)
+		if (fwrite(tmp_buf, r, 1, fp) != 1)
 			err(1, "%s: fwrite", __func__);
 	}
 

@@ -41,10 +41,13 @@
 #define	S_HTTP	0
 #define S_HTTPS	1
 #define S_FTP	2
-const char	*scheme_str[] = { "http", "https", "ftp" };
+#define S_FILE	3
+const char	*scheme_str[] = { "http", "https", "ftp", "file" };
 
 static void	child(int, int, char **);
 static void	env_parse(void);
+static void	file_save(struct url *, int);
+static off_t	file_stat(struct url *);
 static int	fd_request(const char *, int flags);
 static int	parent(int, pid_t, int, char **);
 static int	read_message(struct imsgbuf *, struct imsg *, pid_t);
@@ -64,6 +67,7 @@ struct open_req {
 	int	flags;
 };
 
+char		 tmp_buf[TMPBUF_LEN];
 const char	*ua = "OpenBSD http";
 struct url	*proxy;
 int		 http_debug;
@@ -190,7 +194,7 @@ parent(int sock, pid_t child_pid, int argc, char **argv)
 			else {
 				fd = open(req->fname, req->flags, 0666);
 				if (fd == -1)
-					err(1, "open %s", req->fname);
+					err(1, "Can't open %s", req->fname);
 			}
 			send_message(&ibuf, IMSG_OPEN, NULL, 0, fd);
 			break;
@@ -214,9 +218,8 @@ child(int sock, int argc, char **argv)
 {
 	struct url	 url;
 	char		*str;
-	size_t		 len;
 	off_t		*poff;
-	int		 fd, flags, i, r;
+	int		 fd, flags, i;
 
 	/* XXX libtls will provide hook to preload cert.pem, then drop rpath */
 	if (progressmeter) {
@@ -243,26 +246,10 @@ child(int sock, int argc, char **argv)
 			errx(1, "No '/' after host (use -o): %s", argv[i]);
 
 		url_connect(&url);
-
-		len = strlen(url.fname) + 1;
 		url.offset = 0;
-		if (resume) {
-			send_message(&child_ibuf, IMSG_STAT,
-			    (char *)url.fname, len, -1);
-			r = read_message(&child_ibuf, &child_imsg, getppid());
-			if (r == 0)
+		if (resume)
+			if ((url.offset = file_stat(&url)) == -1)
 				break;
-
-			if (child_imsg.hdr.type != IMSG_STAT)
-				errx(1, "%s: IMSG_STAT expected", __func__);
-
-			len = child_imsg.hdr.len - IMSG_HEADER_SIZE;
-			if (len != sizeof(off_t))
-				errx(1, "%s: imsg size mismatch", __func__);
-
-			poff = child_imsg.data;
-			url.offset = *poff;
-		}
 
 		url_request(&url);
 		flags = O_CREAT | O_WRONLY;
@@ -277,6 +264,28 @@ child(int sock, int argc, char **argv)
 	}
 
 	exit(0);
+}
+
+static off_t
+file_stat(struct url *url)
+{
+	off_t	*poffset;
+	size_t	 len;
+
+	len = strlen(url->fname) + 1;
+	send_message(&child_ibuf, IMSG_STAT, (char *)url->fname, len, -1);
+	if (read_message(&child_ibuf, &child_imsg, getppid()) == 0)
+		return -1;
+
+	if (child_imsg.hdr.type != IMSG_STAT)
+		errx(1, "%s: IMSG_STAT expected", __func__);
+
+	len = child_imsg.hdr.len - IMSG_HEADER_SIZE;
+	if (len != sizeof(off_t))
+		errx(1, "%s: imsg size mismatch", __func__);
+
+	poffset = child_imsg.data;
+	return *poffset;
 }
 
 static int
@@ -326,6 +335,9 @@ url_request(struct url *url)
 		break;
 	case S_FTP:
 		break;
+	case S_FILE:
+		url->file_sz = file_stat(url);
+		break;
 	}
 }
 
@@ -353,10 +365,38 @@ url_save(struct url *url, int fd)
 	case S_FTP:
 		ftp_save(url, fd);
 		break;
+	case S_FILE:
+		file_save(url, fd);
+		break;
 	}
 
 	if (progressmeter)
 		stop_progress_meter();
+}
+
+static void
+file_save(struct url *url, int dst_fd)
+{
+	FILE	*fp;
+	int	 src_fd;
+	ssize_t	 r;
+
+	if ((src_fd = fd_request(url->path, O_RDONLY)) == -1)
+		exit(0);
+
+	if ((fp = fdopen(dst_fd, "w")) == NULL)
+		err(1, "%s: fdopen", __func__);
+
+	while ((r = read(src_fd, tmp_buf, TMPBUF_LEN)) != 0) {
+		if (r == -1)
+			err(1, "%s: read", __func__);
+
+		url->offset += r;
+		if (fwrite(tmp_buf, r, 1, fp) != 1)
+			err(1, "%s: fwrite", __func__);
+	}
+
+	fclose(fp);
 }
 
 static void
@@ -429,6 +469,8 @@ url_parse(struct url *url, const char *url_str)
 			url->scheme = S_HTTPS;
 		else if (strncasecmp(url_str, "ftp://", 6) == 0)
 			url->scheme = S_FTP;
+		else if (strncasecmp(url_str, "file://", 7) == 0)
+			url->scheme = S_FILE;
 		else
 			errx(1, "%s: Invalid scheme %s", __func__, url_str);
 
@@ -450,6 +492,10 @@ url_parse(struct url *url, const char *url_str)
 		url->path = xstrdup(t, __func__);
 		*t = '\0';
 	}
+
+
+	if (url->scheme == S_FILE)
+		return; /* Ignore hostname, port for file scheme */
 
 	/* hostname and port */
 	if ((t = strchr(url_str, ':')) != NULL)	{
@@ -490,6 +536,8 @@ log_request(struct url *url)
 	case S_FTP:
 		custom_port = strcmp(url->port, "21") ? 1 : 0;
 		break;
+	case S_FILE:
+		return;
 	}
 
 	if (proxy)
