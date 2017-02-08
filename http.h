@@ -25,18 +25,20 @@ struct url {
 	char		 basic_auth[BUFSIZ];
 	const char	*fname;
 	const char	*path;
+	size_t		 file_sz;
+	off_t		 offset;
 	int		 scheme;
 };
 
 /* ftp.c */
 void	ftp_connect(struct url *);
-void	ftp_get(struct url *, off_t);
-void	ftp_save_file(struct url *, int, off_t);
+void	ftp_get(struct url *);
+void	ftp_save(struct url *, int);
 
 /* http.c */
 void	http_connect(struct url *);
-void	http_get(struct url *, off_t *);
-void	http_save_file(struct url *, int, off_t);
+void	http_get(struct url *);
+void	http_save(struct url *, int);
 
 /* io.c */
 ssize_t	buffer_drain(int);
@@ -52,7 +54,6 @@ ssize_t	tls_vwriteline(struct tls *, const char *, va_list);
 extern const char	*ua;
 extern struct url	*proxy;
 extern int		 http_debug;
-extern int		 progressmeter;
 
 void	log_info(const char *, ...)
 	    __attribute__((__format__ (printf, 1, 2)))

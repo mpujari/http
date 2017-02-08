@@ -127,8 +127,7 @@ static int		 http_request(struct http_headers *, const char *, ...)
 			    __attribute__((__format__ (printf, 2, 3)))
 			    __attribute__((__nonnull__ (2)));
 
-static struct http_headers	headers;
-static int			sock;
+static int	sock;
 
 void
 http_connect(struct url *url)
@@ -168,14 +167,16 @@ proxy_connect(struct url *url, int fd)
 }
 
 void
-http_get(struct url *url, off_t *offset)
+http_get(struct url *url)
 {
-	char	range[BUFSIZ], *str;
-	int	code, redirects = 0;
+	static struct http_headers	headers;
+	char				range[BUFSIZ], *str;
+	int				code, redirects = 0;
 
  redirected:
 	memset(&headers, 0, sizeof headers);
-	(void)snprintf(range, sizeof range, "Range: bytes=%lld-\r\n", *offset);
+	(void)snprintf(range, sizeof range,
+	    "Range: bytes=%lld-\r\n", url->offset);
 	code = http_request(&headers,
 	    "GET %s HTTP/1.0\r\n"
 	    "Host: %s\r\n"
@@ -186,15 +187,14 @@ http_get(struct url *url, off_t *offset)
 	    url->path ? url->path : "/",
 	    url->host,
 	    ua,
-	    offset && *offset ? range : "",
+	    url->offset ? range : "",
 	    url->basic_auth[0] ? "Authorization: Basic " : "",
 	    url->basic_auth[0] ? url->basic_auth : "");
 
 	switch (code) {
 	case 200:
 		/* Expected partial content but got full content */
-		if (offset && *offset)
-			*offset = 0;
+		url->offset = 0;
 		break;
 	case 206:
 		break;
@@ -227,43 +227,37 @@ http_get(struct url *url, off_t *offset)
 		errx(1, "Error retrieving file: %d %s", code, http_error(code));
 	}
 
+	url->file_sz = headers.content_length + url->offset;
 	free((void *)headers.location);
 }
 
 void
-http_save_file(struct url *url, int fd, off_t offset)
+http_save(struct url *url, int fd)
 {
 	FILE		*fp;
 	static char	*buf;
 	ssize_t		 r;
-	size_t		 file_sz;
 
 	/* allocate once */
 	if (buf == NULL)
 		if ((buf = malloc(TMPBUF_LEN)) == NULL)
 			err(1, "%s: malloc", __func__);
 
-	file_sz = headers.content_length + offset;
-	file_sz -= buffer_drain(fd);
+	url->offset += buffer_drain(fd);
 
 	if ((fp = fdopen(fd, "w")) == NULL)
 		err(1, "%s: fdopen", __func__);
-
-	if (progressmeter)
-		start_progress_meter(url->fname, file_sz, &offset);
 
 	while ((r = read(sock, buf, TMPBUF_LEN)) != 0) {
 		if (r == -1)
 			err(1, "%s: read", __func__);
 
-		offset += r;
+		url->offset += r;
 		if (fwrite(buf, r, 1, fp) != 1)
 			err(1, "%s: fwrite", __func__);
 	}
 
 	fclose(fp);
-	if (progressmeter)
-		stop_progress_meter();
 }
 
 static int
@@ -286,14 +280,14 @@ http_request(struct http_headers *headers, const char *fmt, ...)
 	if ((code = http_status_code(buf)) == -1)
 		errx(1, "%s: Failed to extract status code", __func__);
 
-	while ((r = readline(sock, buf, sizeof buf)) != 0) {
+	do {
+		r = readline(sock, buf, sizeof buf);
 		if (r == -1)
 			errx(1, "%s: readline failed", __func__);
-		if (r == 0)	/* End of headers */
-			break;
-		else if (headers)
+
+		if (headers)
 			headers_parse(headers, buf);
-	}
+	} while (r != 0);
 
 	return code;
 }
@@ -325,7 +319,7 @@ headers_parse(struct http_headers *headers, const char *buf)
 	size_t		 sz;
 
 	if (strncasecmp(buf, "Content-Length: ", 16) == 0) {
-		if ((buf = strchr(buf, ' ')) == NULL) /* should not happen */
+		if ((buf = strchr(buf, ' ')) == NULL)
 			errx(1, "Failed to parse Content-Length header");
 
 		buf++;
@@ -336,7 +330,7 @@ headers_parse(struct http_headers *headers, const char *buf)
 	}
 
 	if (strncasecmp(buf, "Location: ", 10) == 0) {
-		if ((buf = strchr(buf, ' ')) == NULL) /* should not happen */
+		if ((buf = strchr(buf, ' ')) == NULL)
 			errx(1, "Failed to parse Location header");
 
 		headers->location = xstrdup(++buf, __func__);

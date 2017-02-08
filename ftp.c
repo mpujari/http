@@ -28,13 +28,13 @@ ftp_connect(struct url *url)
 }
 
 void
-ftp_get(struct url *url, off_t offset)
+ftp_get(struct url *url)
 {
 
 }
 
 void
-ftp_save_file(struct url *url, int fd, off_t offset)
+ftp_save(struct url *url, int fd)
 {
 
 }

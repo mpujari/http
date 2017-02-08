@@ -41,6 +41,7 @@
 #define	HTTP	0
 #define HTTPS	1
 #define FTP	2
+const char	*scheme_str[] = { "http", "https", "ftp" };
 
 static void	child(int, int, char **);
 static void	env_parse(void);
@@ -48,8 +49,8 @@ static int	parent(int, pid_t, int, char **);
 static int	read_message(struct imsgbuf *, struct imsg *, pid_t);
 static void	send_message(struct imsgbuf *, int, void *, size_t, int);
 static void	url_connect(struct url *);
-static void	url_request(struct url *, off_t *);
-static void	url_save(struct url *, int, off_t);
+static void	url_request(struct url *);
+static void	url_save(struct url *, int);
 __dead void	usage(void);
 
 enum {
@@ -65,12 +66,11 @@ struct open_req {
 const char	*ua = "OpenBSD http";
 struct url	*proxy;
 int		 http_debug;
-int		 progressmeter = 1;
 
-const char	*scheme_str[] = { "http", "https", "ftp" };
 static char	*oarg;
 static char	*tls_options;
 static int	 resume;
+static int	 progressmeter = 1;
 static int	 verbose = 1;
 
 int
@@ -169,8 +169,8 @@ parent(int sock, pid_t child_pid, int argc, char **argv)
 
 		switch (imsg.hdr.type) {
 		case IMSG_STAT:
-			offset = 0;
 			fn = imsg.data;
+			offset = 0;
 			if (stat(fn, &sb) == 0)
 				offset = sb.st_size;
 			send_message(&ibuf, IMSG_STAT, &offset,
@@ -217,7 +217,7 @@ child(int sock, int argc, char **argv)
 	struct open_req	 req;
 	char		*str;
 	size_t		 flen;
-	off_t		offset, *poff;
+	off_t		*poff;
 	int		 i;
 
 	/* XXX libtls will provide hook to preload cert.pem, then drop rpath */
@@ -246,7 +246,7 @@ child(int sock, int argc, char **argv)
 		url_connect(&url);
 
 		flen = strlen(url.fname) + 1;
-		offset = 0;
+		url.offset = 0;
 		if (resume) {
 			send_message(&ibuf, IMSG_STAT, (char *)url.fname,
 			    flen, -1);
@@ -260,15 +260,15 @@ child(int sock, int argc, char **argv)
 				errx(1, "%s: imsg size mismatch", __func__);
 
 			poff = imsg.data;
-			offset = *poff;
+			url.offset = *poff;
 		}
 
-		url_request(&url, &offset);
+		url_request(&url);
 		if (strlcpy(req.fname, url.fname,
 		    sizeof req.fname) >= sizeof req.fname)
 			errx(1, "%s: filename overflow", __func__);
 
-		req.append = offset ? 1 : 0;
+		req.append = url.offset ? 1 : 0;
 		send_message(&ibuf, IMSG_OPEN, &req, sizeof req, -1);
 		if (read_message(&ibuf, &imsg, getppid()) == 0)
 			break;
@@ -279,7 +279,7 @@ child(int sock, int argc, char **argv)
 		if (imsg.fd == -1)
 			errx(1, "%s: expected a file descriptor", __func__);
 
-		url_save(&url, imsg.fd, offset);
+		url_save(&url, imsg.fd);
 		free((void *)url.path);
 		imsg_free(&imsg);
 	}
@@ -290,7 +290,6 @@ child(int sock, int argc, char **argv)
 static void
 url_connect(struct url *url)
 {
-	log_request(url);
 	switch (url->scheme) {
 	case HTTP:
 	case HTTPS:
@@ -303,12 +302,13 @@ url_connect(struct url *url)
 }
 
 static void
-url_request(struct url *url, off_t *offset)
+url_request(struct url *url)
 {
+	log_request(url);
 	switch (url->scheme) {
 	case HTTP:
 	case HTTPS:
-		http_get(url, offset);
+		http_get(url);
 		break;
 	case FTP:
 		break;
@@ -316,7 +316,7 @@ url_request(struct url *url, off_t *offset)
 }
 
 static void
-url_save(struct url *url, int fd, off_t offset)
+url_save(struct url *url, int fd)
 {
 	if (oarg) {
 		if (progressmeter) {
@@ -328,15 +328,21 @@ url_save(struct url *url, int fd, off_t offset)
 		}
 	}
 
+	if (progressmeter)
+		start_progress_meter(url->fname, url->file_sz, &url->offset);
+
 	switch (url->scheme) {
 	case HTTP:
 	case HTTPS:
-		http_save_file(url, fd, offset);
+		http_save(url, fd);
 		break;
 	case FTP:
-		ftp_save_file(url, fd, offset);
+		ftp_save(url, fd);
 		break;
 	}
+
+	if (progressmeter)
+		stop_progress_meter();
 }
 
 static void
