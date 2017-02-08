@@ -232,6 +232,7 @@ child(int sock, int argc, char **argv)
 	imsg_init(&ibuf, sock);
 	for (i = 0; i < argc; i++) {
 		str = url_encode(argv[i]);
+		memset(&url, 0, sizeof url);
 		url_parse(&url, str);
 		free(str);
 		if ((url.fname = oarg ? oarg : basename(url.path)) == NULL)
@@ -404,7 +405,6 @@ url_parse(struct url *url, const char *url_str)
 {
 	char	*t;
 
-	memset(url, 0, sizeof *url);
 	while (isblank((unsigned char)*url_str))
 		url_str++;
 
