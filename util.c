@@ -51,6 +51,7 @@
 #include <errno.h>
 #include <limits.h>
 #include <netdb.h>
+#include <signal.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
@@ -59,6 +60,7 @@
 
 #include "http.h"
 
+static void	tooslow(int);
 static int	unsafe_char(const char *);
 
 /*
@@ -128,8 +130,17 @@ unsafe_char(const char *c0)
 	    (*c == '%' && (!isxdigit(*++c) || !isxdigit(*++c))));
 }
 
+static void
+tooslow(int signo)
+{
+	extern char	*__progname;
+
+	dprintf(STDERR_FILENO, "%s: connect taking too long\n", __progname);
+	_exit(2);
+}
+
 int
-tcp_connect(const char *host, const char *port)
+tcp_connect(const char *host, const char *port, int timeout)
 {
 	struct addrinfo	 hints, *res, *res0;
 	char		 hbuf[NI_MAXHOST];
@@ -146,6 +157,11 @@ tcp_connect(const char *host, const char *port)
 	hints.ai_socktype = SOCK_STREAM;
 	if ((error = getaddrinfo(host, port, &hints, &res0)))
 		errx(1, "%s: %s", host, gai_strerror(error));
+
+	if (timeout) {
+		(void)signal(SIGALRM, tooslow);
+		alarm(timeout);
+	}
 
 	for (res = res0; res; res = res->ai_next) {
 		if (getnameinfo(res->ai_addr, res->ai_addrlen, hbuf,
@@ -174,6 +190,11 @@ tcp_connect(const char *host, const char *port)
 	freeaddrinfo(res0);
 	if (s == -1)
 		err(1, "%s", cause);
+
+	if (timeout) {
+		signal(SIGALRM, SIG_DFL);
+		alarm(0);
+	}
 
 	return s;
 }

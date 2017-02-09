@@ -53,7 +53,7 @@ static int	parent(int, pid_t, int, char **);
 static int	read_message(struct imsgbuf *, struct imsg *, pid_t);
 static void	send_message(struct imsgbuf *, int, uint32_t,
 		    void *, size_t, int);
-static void	url_connect(struct url *);
+static void	url_connect(struct url *, int);
 static void	url_request(struct url *);
 static void	url_save(struct url *, int);
 __dead void	usage(void);
@@ -77,6 +77,7 @@ static struct imsgbuf	 child_ibuf;
 static struct imsg	 child_imsg;
 static char		*oarg;
 static char		*tls_options;
+static int		 connect_timeout;
 static int		 resume;
 static int		 progressmeter = 1;
 static int		 verbose = 1;
@@ -84,11 +85,12 @@ static int		 verbose = 1;
 int
 main(int argc, char **argv)
 {
-	char	*Darg = NULL;
-	int	 ch, sp[2];
-	pid_t	 pid;
+	const char	*errstr;
+	char		*Darg = NULL;
+	int		 ch, sp[2];
+	pid_t		 pid;
 
-	while ((ch = getopt(argc, argv, "aCD:o:mMS:U:V")) != -1) {
+	while ((ch = getopt(argc, argv, "aCD:o:mMS:U:Vw:")) != -1) {
 		switch (ch) {
 		case 'C':
 			resume = 1;
@@ -110,6 +112,11 @@ main(int argc, char **argv)
 			break;
 		case 'V':
 			verbose = 0;
+			break;
+		case 'w':
+			connect_timeout = strtonum(optarg, 0, 200, &errstr);
+			if (errstr)
+				errx(1, "-w: %s", errstr);
 			break;
 		/* options for compatibility, on by default */
 		case 'a':
@@ -246,7 +253,7 @@ child(int sock, int argc, char **argv)
 		if (strcmp(url.fname, ".") == 0)
 			errx(1, "No '/' after host (use -o): %s", argv[i]);
 
-		url_connect(&url);
+		url_connect(&url, connect_timeout);
 		url.offset = 0;
 		if (resume)
 			if ((url.offset = file_stat(url.fname, NULL)) == -1)
@@ -315,15 +322,15 @@ fd_request(const char *fname, int flags)
 }
 
 static void
-url_connect(struct url *url)
+url_connect(struct url *url, int timeout)
 {
 	switch (url->scheme) {
 	case S_HTTP:
 	case S_HTTPS:
-		http_connect(url);
+		http_connect(url, timeout);
 		break;
 	case S_FTP:
-		ftp_connect(url);
+		ftp_connect(url, timeout);
 		break;
 	}
 }
@@ -580,7 +587,8 @@ usage(void)
 	extern char	*__progname;
 
 	fprintf(stderr, "usage: %s [-CVM] [-D title] [-o output] "
-	    "[-S tls_options] [-U useragent] url ...\n", __progname);
+	    "[-S tls_options] [-U useragent] "
+	    "[-w seconds] url ...\n", __progname);
 
 	exit(1);
 }

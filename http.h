@@ -32,12 +32,12 @@ struct url {
 };
 
 /* ftp.c */
-void	ftp_connect(struct url *);
+void	ftp_connect(struct url *, int);
 void	ftp_get(struct url *);
 void	ftp_save(struct url *, int);
 
 /* http.c */
-void	http_connect(struct url *);
+void	http_connect(struct url *, int);
 void	http_get(struct url *);
 void	http_save(struct url *, int);
 
@@ -70,6 +70,6 @@ void	stop_progress_meter(void);
 
 /* util.c */
 char	*url_encode(const char *);
-int	 tcp_connect(const char *, const char *);
+int	 tcp_connect(const char *, const char *, int);
 void	 proxy_connect(struct url *, int);
 char	*xstrdup(const char *, const char *);

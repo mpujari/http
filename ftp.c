@@ -22,7 +22,7 @@
 #include "http.h"
 
 void
-ftp_connect(struct url *url)
+ftp_connect(struct url *url, int timeout)
 {
 
 }

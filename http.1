@@ -54,6 +54,7 @@
 .Op Fl o Ar output
 .Op Fl S Ar tls_options
 .Op Fl U Ar useragent
+.Op Fl w Ar seconds
 .Sm off
 .Pf http Oo s Oc ://
 .Op Ar user : password No @
@@ -137,6 +138,9 @@ If not specified, the default User-Agent is
 .Dq OpenBSD http .
 .It Fl V
 Disable verbose mode.
+.It Fl w Ar seconds
+Abort a slow connection after
+.Ar seconds .
 .El
 .Pp
 .Nm

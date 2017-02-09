@@ -130,12 +130,12 @@ static int		 http_request(struct http_headers *, const char *, ...)
 static int	sock;
 
 void
-http_connect(struct url *url)
+http_connect(struct url *url, int timeout)
 {
 	if (url->port[0] == '\0')
 		(void)strlcpy(url->port, "80", sizeof url->port);
 
-	sock = tcp_connect(url->host, url->port);
+	sock = tcp_connect(url->host, url->port, timeout);
 	if (proxy)
 		proxy_connect(url, sock);
 }
@@ -217,7 +217,7 @@ http_get(struct url *url)
 		log_info("Redirected to %s\n", headers.location);
 		free((void *)headers.location);
 		buffer_drain(-1);
-		http_connect(url);
+		http_connect(url, 0);
 		log_request(url);
 		goto redirected;
 	case 416:
