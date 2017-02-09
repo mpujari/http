@@ -14,6 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#include <sys/param.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 
@@ -22,7 +23,6 @@
 
 #include <err.h>
 #include <libgen.h>
-#include <limits.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -273,8 +273,8 @@ static int
 ftp_auth(const char *user, const char *pass)
 {
 	int	code, ret;
-	char	hn[HOST_NAME_MAX+1], *un;
-	char	addr[LOGIN_NAME_MAX+HOST_NAME_MAX+3];
+	char	hn[MAXHOSTNAMELEN+1], *un;
+	char	addr[LOGIN_NAME_MAX+MAXHOSTNAMELEN+3];
 
 	code = ftp_command(ctrl_sock, "USER %s", user ? user : "anonymous");
 	if (code != P_OK && code != P_INTER)

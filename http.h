@@ -14,9 +14,9 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#include <sys/param.h>
 #include <sys/types.h>
 
-#include <limits.h>
 #include <netdb.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -32,7 +32,7 @@
 struct tls;
 
 struct url {
-	char		 host[HOST_NAME_MAX+1];
+	char		 host[MAXHOSTNAMELEN+1];
 	char		 port[NI_MAXSERV];
 	char		 basic_auth[BUFSIZ];
 	const char	*fname;
