@@ -38,12 +38,6 @@
 
 #include "http.h"
 
-#define	S_HTTP	0
-#define S_HTTPS	1
-#define S_FTP	2
-#define S_FILE	3
-const char	*scheme_str[] = { "http", "https", "ftp", "file" };
-
 static void	child(int, int, char **);
 static void	env_parse(void);
 static void	file_save(struct url *, int);
@@ -70,13 +64,13 @@ struct open_req {
 
 char		 tmp_buf[TMPBUF_LEN];
 const char	*ua = "OpenBSD http";
+char		*tls_options;
 struct url	*proxy;
 int		 http_debug;
 
 static struct imsgbuf	 child_ibuf;
 static struct imsg	 child_imsg;
 static char		*oarg;
-static char		*tls_options;
 static int		 connect_timeout;
 static int		 resume;
 static int		 progressmeter = 1;
@@ -147,6 +141,8 @@ main(int argc, char **argv)
 		errx(1, "Can't use -o with multiple urls");
 
 	env_parse();
+	https_init();
+
 	if (socketpair(AF_UNIX, SOCK_STREAM, PF_UNSPEC, sp) != 0)
 		err(1, "socketpair");
 
@@ -542,7 +538,8 @@ log_info(const char *fmt, ...)
 void
 log_request(struct url *url)
 {
-	int	custom_port = 0;
+	const char	*scheme_str[] = { "http", "https", "ftp", "file" };
+	int		 custom_port = 0;
 
 	switch (url->scheme) {
 	case S_HTTP:

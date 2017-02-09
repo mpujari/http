@@ -18,6 +18,11 @@
 #define MAX_LINE	4096
 #define TMPBUF_LEN	131072
 
+#define	S_HTTP	0
+#define S_HTTPS	1
+#define S_FTP	2
+#define S_FILE	3
+
 struct tls;
 
 struct url {
@@ -40,6 +45,7 @@ void	ftp_save(struct url *, int);
 void	http_connect(struct url *, int);
 void	http_get(struct url *);
 void	http_save(struct url *, int);
+void	https_init(void);
 
 /* io.c */
 ssize_t	buffer_drain(int);
@@ -53,6 +59,7 @@ ssize_t	tls_vwriteline(struct tls *, const char *, va_list);
 
 /* main.c */
 extern char		 tmp_buf[TMPBUF_LEN];
+extern char		*tls_options;
 extern const char	*ua;
 extern struct url	*proxy;
 extern int		 http_debug;

@@ -23,6 +23,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <tls.h>
 #include <unistd.h>
 
 #include "http.h"
@@ -123,21 +124,116 @@ static void		 headers_parse(struct http_headers *, const char *);
 static const char	*http_error(int);
 static int		 http_status_code(const char *);
 static int		 http_status_cmp(const void *, const void *);
-static int		 http_request(struct http_headers *, const char *, ...)
-			    __attribute__((__format__ (printf, 2, 3)))
-			    __attribute__((__nonnull__ (2)));
+static int		 http_request(int, struct http_headers *,
+			    const char *, ...)
+			    __attribute__((__format__ (printf, 3, 4)))
+			    __attribute__((__nonnull__ (3)));
 
-static int	sock;
+static struct tls_config	*tls_config;
+static struct tls		*ctx;
+static int			 sock;
+
+static char * const		 tls_verify_opts[] = {
+#define HTTP_TLS_CAFILE		0
+	"cafile",
+#define HTTP_TLS_CAPATH		1
+	"capath",
+#define HTTP_TLS_CIPHERS	2
+	"ciphers",
+#define HTTP_TLS_DONTVERIFY	3
+	"dont",
+#define HTTP_TLS_VERIFYDEPTH	4
+	"depth",
+#define HTTP_TLS_PROTOCOLS	5
+	"protocols",
+	NULL
+};
+
+void
+https_init(void)
+{
+	char		*str;
+	int		 depth;
+	uint32_t	 http_tls_protocols;
+	const char	*errstr;
+
+	if (tls_init() != 0)
+		errx(1, "tls_init failed");
+
+	if ((tls_config = tls_config_new()) == NULL)
+		errx(1, "tls_config_new failed");
+
+	if (tls_options == NULL)
+		return;
+
+	while (*tls_options) {
+		switch (getsubopt(&tls_options, tls_verify_opts, &str)) {
+		case HTTP_TLS_CAFILE:
+			if (str == NULL)
+				errx(1, "missing CA file");
+			if (tls_config_set_ca_file(tls_config, str) != 0)
+				errx(1, "tls ca file failed");
+			break;
+		case HTTP_TLS_CAPATH:
+			if (str == NULL)
+				errx(1, "missing ca path");
+			if (tls_config_set_ca_path(tls_config, str) != 0)
+				errx(1, "tls ca path failed");
+			break;
+		case HTTP_TLS_CIPHERS:
+			if (str == NULL)
+				errx(1, "missing cipher list");
+			if (tls_config_set_ciphers(tls_config, str) != 0)
+				errx(1, "tls set ciphers failed");
+			break;
+		case HTTP_TLS_DONTVERIFY:
+			tls_config_insecure_noverifycert(tls_config);
+			tls_config_insecure_noverifyname(tls_config);
+			break;
+		case HTTP_TLS_PROTOCOLS:
+			if (tls_config_parse_protocols(&http_tls_protocols,
+			    str) != 0)
+				errx(1, "tls parsing protocols failed");
+			tls_config_set_protocols(tls_config,
+			    http_tls_protocols);
+			break;
+		case HTTP_TLS_VERIFYDEPTH:
+			if (str == NULL)
+				errx(1, "missing depth");
+			depth = strtonum(str, 0, INT_MAX, &errstr);
+			if (errstr)
+				errx(1, "Cert validation depth is %s", errstr);
+			tls_config_set_verify_depth(tls_config, depth);
+			break;
+		default:
+			errx(1, "Unknown -S suboption `%s'",
+			    suboptarg ? suboptarg : "");
+		}
+	}
+}
 
 void
 http_connect(struct url *url, int timeout)
 {
 	if (url->port[0] == '\0')
-		(void)strlcpy(url->port, "80", sizeof url->port);
+		(void)strlcpy(url->port,
+		    url->scheme == S_HTTP ? "80" : "443", sizeof url->port);
 
 	sock = tcp_connect(url->host, url->port, timeout);
 	if (proxy)
 		proxy_connect(url, sock);
+
+	if (url->scheme == S_HTTP)
+		return;
+
+	if ((ctx = tls_client()) == NULL)
+		errx(1, "failed to create tls client");
+
+	if (tls_configure(ctx, tls_config) != 0)
+		errx(1, "%s: %s", __func__, tls_error(ctx));
+
+	if (tls_connect_socket(ctx, sock, url->host) != 0)
+		errx(1, "%s: %s", __func__, tls_error(ctx));
 }
 
 void
@@ -177,7 +273,7 @@ http_get(struct url *url)
 	memset(&headers, 0, sizeof headers);
 	(void)snprintf(range, sizeof range,
 	    "Range: bytes=%lld-\r\n", url->offset);
-	code = http_request(&headers,
+	code = http_request(url->scheme, &headers,
 	    "GET %s HTTP/1.0\r\n"
 	    "Host: %s\r\n"
 	    "User-Agent: %s\r\n"
@@ -217,6 +313,7 @@ http_get(struct url *url)
 		log_info("Redirected to %s\n", headers.location);
 		free((void *)headers.location);
 		buffer_drain(-1);
+		url->port[0] = '\0';
 		http_connect(url, 0);
 		log_request(url);
 		goto redirected;
@@ -241,9 +338,17 @@ http_save(struct url *url, int fd)
 		err(1, "%s: fdopen", __func__);
 
 	url->offset += buffer_drain(fd);
-	while ((r = read(sock, tmp_buf, TMPBUF_LEN)) != 0) {
-		if (r == -1)
-			err(1, "%s: read", __func__);
+	while (1) {
+		if (url->scheme == S_HTTP) {
+			if ((r = read(sock, tmp_buf, TMPBUF_LEN)) == -1)
+				err(1, "%s: read", __func__);
+		} else {
+			if ((r = tls_read(ctx, tmp_buf, TMPBUF_LEN)) == -1)
+				err(1, "tls_read: %s", tls_error(ctx));
+		}
+
+		if (r == 0)
+			break;
 
 		url->offset += r;
 		if (fwrite(tmp_buf, r, 1, fp) != 1)
@@ -251,10 +356,16 @@ http_save(struct url *url, int fd)
 	}
 
 	fclose(fp);
+	if (url->scheme == S_HTTP)
+		close(sock);
+	else {
+		tls_close(ctx);
+		tls_free(ctx);
+	}
 }
 
 static int
-http_request(struct http_headers *headers, const char *fmt, ...)
+http_request(int scheme, struct http_headers *headers, const char *fmt, ...)
 {
 	char	buf[MAX_LINE];
 	va_list	ap;
@@ -262,25 +373,41 @@ http_request(struct http_headers *headers, const char *fmt, ...)
 	int	code;
 
 	va_start(ap, fmt);
-	r = vwriteline(sock, fmt, ap);
+	if (scheme == S_HTTP)
+		r = vwriteline(sock, fmt, ap);
+	else
+		r = tls_vwriteline(ctx, fmt, ap);
 	va_end(ap);
+
 	if (r == 0)
 		errx(1, "%s: socket closed", __func__);
 
-	if (readline(sock, buf, sizeof buf) <= 0)
+	if (scheme == S_HTTP)
+		r = readline(sock, buf, sizeof buf);
+	else
+		r = tls_readline(ctx, buf, sizeof buf);
+
+	if (r <= 0)
 		errx(1, "%s: Failed to get response", __func__);
 
 	if ((code = http_status_code(buf)) == -1)
 		errx(1, "%s: Failed to extract status code", __func__);
 
-	do {
-		r = readline(sock, buf, sizeof buf);
+	while (1) {
+		if (scheme == S_HTTP)
+			r = readline(sock, buf, sizeof buf);
+		else
+			r = tls_readline(ctx, buf, sizeof buf);
+
 		if (r == -1)
 			errx(1, "%s: readline failed", __func__);
 
+		if (r == 0)
+			break;
+
 		if (headers)
 			headers_parse(headers, buf);
-	} while (r != 0);
+	}
 
 	return code;
 }
