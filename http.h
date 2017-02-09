@@ -31,7 +31,7 @@ struct url {
 	char		 basic_auth[BUFSIZ];
 	const char	*fname;
 	const char	*path;
-	size_t		 file_sz;
+	off_t		 file_sz;
 	off_t		 offset;
 	int		 scheme;
 };

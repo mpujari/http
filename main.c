@@ -343,6 +343,7 @@ url_request(struct url *url)
 		http_get(url);
 		break;
 	case S_FTP:
+		ftp_get(url);
 		break;
 	case S_FILE:
 		if ((url->file_sz = file_stat(url->path, &save_errno)) == -1) {
