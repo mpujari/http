@@ -155,16 +155,16 @@ The following formats are valid syntax for fetching a file:
 .Xc
 .Sm on
 An FTP URL, retrieved using the FTP protocol if
-.Ev http_proxy
+.Ev HTTP_PROXY
 isn't defined.
 Otherwise, transfer using HTTP via the proxy defined in
-.Ev http_proxy .
+.Ev HTTP_PROXY .
 If a
 .Ar user
 and
 .Ar password
 are given and
-.Ev http_proxy
+.Ev HTTP_PROXY
 isn't defined,
 log in as
 .Ar user
@@ -179,14 +179,14 @@ with a password of
 .Sm on
 An HTTP URL, retrieved using the HTTP protocol.
 If
-.Ev http_proxy
+.Ev HTTP_PROXY
 is defined, it is used as a URL to an HTTP proxy server.
 If a
 .Ar user
 and
 .Ar password
 are given and
-.Ev http_proxy
+.Ev HTTP_PROXY
 isn't defined,
 log in as
 .Ar user
@@ -202,7 +202,7 @@ using Basic authentication.
 .Sm on
 An HTTPS URL, retrieved using the HTTPS protocol.
 If
-.Ev http_proxy
+.Ev HTTP_PROXY
 is defined, this HTTPS proxy server will be used to fetch the
 file using the CONNECT method.
 If a
@@ -210,7 +210,7 @@ If a
 and
 .Ar password
 are given and
-.Ev http_proxy
+.Ev HTTP_PROXY
 isn't defined,
 log in as
 .Ar user
