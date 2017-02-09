@@ -17,12 +17,15 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 
-#include <ctype.h>
+#include <arpa/inet.h>
+#include <netinet/in.h>
+
+#include <err.h>
 #include <libgen.h>
 #include <limits.h>
-#include <netdb.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 

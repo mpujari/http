@@ -43,16 +43,13 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/types.h>
 #include <sys/socket.h>
 
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
-#include <limits.h>
 #include <netdb.h>
 #include <signal.h>
-#include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>

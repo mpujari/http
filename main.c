@@ -27,7 +27,6 @@
 #include <fcntl.h>
 #include <imsg.h>
 #include <libgen.h>
-#include <limits.h>
 #include <netdb.h>
 #include <resolv.h>
 #include <stdarg.h>

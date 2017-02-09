@@ -25,21 +25,15 @@
 
 #include <sys/types.h>
 #include <sys/ioctl.h>
-#include <sys/uio.h>
 
 #include <err.h>
 #include <errno.h>
-#include <limits.h>
-#include <netdb.h>
 #include <signal.h>
-#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
-
-#include "http.h"
 
 #define DEFAULT_WINSIZE 80
 #define MAX_WINSIZE 512

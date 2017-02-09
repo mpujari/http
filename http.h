@@ -15,6 +15,13 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#include <sys/types.h>
+
+#include <limits.h>
+#include <netdb.h>
+#include <stdarg.h>
+#include <stdio.h>
+
 #define MAX_LINE	4096
 #define TMPBUF_LEN	131072
 
