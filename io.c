@@ -15,9 +15,6 @@
  */
 
 #include <err.h>
-#include <errno.h>
-#include <limits.h>
-#include <netdb.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
