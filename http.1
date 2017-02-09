@@ -49,13 +49,11 @@
 .Nd HTTP file transfer program
 .Sh SYNOPSIS
 .Nm
-.Op Fl C
-.Op Fl M
+.Op Fl CMV
 .Op Fl D Ar title
 .Op Fl o Ar output
 .Op Fl S Ar tls_options
 .Op Fl U Ar useragent
-.Op Fl V
 .Sm off
 .Pf http Oo s Oc ://
 .Op Ar user : password No @
@@ -63,21 +61,9 @@
 .No / Ar file Op /
 .Sm on
 .Ar ...
-.Nm
-.Op Fl C
-.Op Fl M
-.Op Fl o Ar output
-.Op Fl U Ar useragent
-.Op Fl V
-.Sm off
-.Pf ftp:// Op Ar user : password No @
-.Ar host Op : Ar port
-.No / Ar file
-.Sm on
-.Ar ...
 .Sh DESCRIPTION
 .Nm
-allows a user to transfer files from a remote HTTP, HTTPS, FTP server.
+allows a user to transfer files from a remote HTTP, HTTPS or an FTP server.
 .Pp
 The options are as follows:
 .Bl -tag -width Ds
