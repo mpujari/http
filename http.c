@@ -289,7 +289,7 @@ http_get(struct url *url)
 
 	switch (code) {
 	case 200:
-		/* Expected partial content but got full content */
+		/* while expecting a partial content but got full content */
 		url->offset = 0;
 		break;
 	case 206:
