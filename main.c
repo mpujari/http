@@ -406,6 +406,7 @@ file_save(struct url *url, int dst_fd)
 	}
 
 	fclose(fp);
+	close(src_fd);
 }
 
 static void
