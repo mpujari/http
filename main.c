@@ -80,7 +80,7 @@ main(int argc, char **argv)
 {
 	const char	*errstr;
 	char		*Darg = NULL;
-	int		 ch, sp[2];
+	int		 ch, mflag = 0, sp[2];
 	pid_t		 pid;
 
 	while ((ch = getopt(argc, argv, "aCD:o:mMS:U:Vw:")) != -1) {
@@ -96,6 +96,9 @@ main(int argc, char **argv)
 			break;
 		case 'M':
 			progressmeter = 0;
+			break;
+		case 'm':
+			mflag = 1;
 			break;
 		case 'S':
 			tls_options = optarg;
@@ -113,7 +116,6 @@ main(int argc, char **argv)
 			break;
 		/* options for compatibility, on by default */
 		case 'a':
-		case 'm':
 			break;
 		default:
 			usage();
@@ -124,6 +126,9 @@ main(int argc, char **argv)
 
 	if (isatty(STDOUT_FILENO) == 0)
 		progressmeter = 0;
+
+	if (mflag)
+		progressmeter = 1;
 
 	if (progressmeter) {
 		init_progress_meter(Darg, verbose);
