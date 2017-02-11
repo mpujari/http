@@ -122,6 +122,9 @@ main(int argc, char **argv)
 	argc -= optind;
 	argv += optind;
 
+	if (isatty(STDOUT_FILENO) == 0)
+		progressmeter = 0;
+
 	if (progressmeter) {
 		init_progress_meter(Darg, verbose);
 		if (pledge("stdio cpath wpath rpath inet dns recvfd sendfd proc tty",
