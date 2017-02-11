@@ -364,6 +364,8 @@ url_request(struct url *url)
 static void
 url_save(struct url *url, int fd)
 {
+	const char	*fname;
+
 	if (oarg) {
 		if (progressmeter) {
 			if (pledge("stdio tty", NULL) == -1)
@@ -374,8 +376,11 @@ url_save(struct url *url, int fd)
 		}
 	}
 
+	/* Use basename of path for progressmeter when output is stdout */
+	fname = strcmp(url->fname, "-") == 0 ? basename(url->path) : url->fname;
+
 	if (progressmeter)
-		start_progress_meter(url->fname, url->file_sz, &url->offset);
+		start_progress_meter(fname, url->file_sz, &url->offset);
 
 	switch (url->scheme) {
 	case S_HTTP:
