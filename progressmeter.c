@@ -196,7 +196,7 @@ refresh_progress_meter(void)
 		len = strlen(filename);
 		if (len < 12)
 			len = 12;
-		else {
+		else if (len > 25) {
 			len = 22;
 			dot = "...";
 			overhead += 3;
