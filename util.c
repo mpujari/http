@@ -43,11 +43,14 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <sys/types.h>
+#include <sys/queue.h>
 #include <sys/socket.h>
 
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
+#include <imsg.h>
 #include <netdb.h>
 #include <signal.h>
 #include <stdio.h>
@@ -205,4 +208,84 @@ xstrdup(const char *str, const char *where)
 		errx(1, "%s: strdup", where);
 
 	return r;
+}
+
+off_t
+stat_request(struct imsgbuf *ibuf, struct imsg *imsg,
+    const char *fname, int *save_errno)
+{
+	off_t	*poffset;
+	size_t	 len;
+
+	len = strlen(fname) + 1;
+	send_message(ibuf, IMSG_STAT, -1, (char *)fname, len, -1);
+	if (read_message(ibuf, imsg, getppid()) == 0)
+		return -1;
+
+	if (imsg->hdr.type != IMSG_STAT)
+		errx(1, "%s: IMSG_STAT expected", __func__);
+
+	if ((imsg->hdr.len - IMSG_HEADER_SIZE) != sizeof(off_t))
+		errx(1, "%s: imsg size mismatch", __func__);
+
+	if (save_errno)
+		*save_errno = imsg->hdr.peerid;
+
+	poffset = imsg->data;
+	return *poffset;
+}
+
+int
+fd_request(struct imsgbuf *ibuf, struct imsg *imsg,
+    const char *fname, int flags)
+{
+	struct open_req	req;
+
+	if (strlcpy(req.fname, fname, sizeof req.fname) >= sizeof req.fname)
+		errx(1, "%s: filename overflow", __func__);
+
+	req.flags = flags;
+	send_message(ibuf, IMSG_OPEN, -1, &req, sizeof req, -1);
+	if (read_message(ibuf, imsg, getppid()) == 0)
+		return -1;
+
+	if (imsg->hdr.type != IMSG_OPEN)
+		errx(1, "%s: IMSG_OPEN expected", __func__);
+
+	if (imsg->fd == -1)
+		errx(1, "%s: expected a file descriptor", __func__);
+
+	return imsg->fd;
+}
+
+void
+send_message(struct imsgbuf *ibuf, int type, uint32_t peerid,
+    void *msg, size_t msglen, int fd)
+{
+	if (imsg_compose(ibuf, type, peerid, 0, fd, msg, msglen) != 1)
+		err(1, "imsg_compose");
+
+	if (imsg_flush(ibuf) != 0)
+		err(1, "imsg_flush");
+}
+
+int
+read_message(struct imsgbuf *ibuf, struct imsg *imsg, pid_t from)
+{
+	int	n;
+
+	if ((n = imsg_read(ibuf)) == -1)
+		err(1, "imsg_read");
+	if (n == 0)
+		return 0;
+
+	if ((n = imsg_get(ibuf, imsg)) == -1)
+		err(1, "imsg_get");
+	if (n == 0)
+		return 0;
+
+	if ((pid_t)imsg->hdr.pid != from)
+		errx(1, "PIDs don't match");
+
+	return n;
 }

@@ -39,27 +39,11 @@
 
 static void	child(int, int, char **);
 static void	env_parse(void);
-static void	file_save(struct url *, int);
-static off_t	file_stat(const char *, int *);
-static int	fd_request(const char *, int flags);
 static int	parent(int, pid_t, int, char **);
-static int	read_message(struct imsgbuf *, struct imsg *, pid_t);
-static void	send_message(struct imsgbuf *, int, uint32_t,
-		    void *, size_t, int);
 static void	url_connect(struct url *, int);
 static void	url_request(struct url *);
 static void	url_save(struct url *, int);
 __dead void	usage(void);
-
-enum {
-	IMSG_STAT,
-	IMSG_OPEN
-};
-
-struct open_req {
-	char	fname[FILENAME_MAX];
-	int	flags;
-};
 
 char		 tmp_buf[TMPBUF_LEN];
 const char	*ua = "OpenBSD http";
@@ -259,14 +243,16 @@ child(int sock, int argc, char **argv)
 		url_connect(&url, connect_timeout);
 		url.offset = 0;
 		if (resume)
-			if ((url.offset = file_stat(url.fname, NULL)) == -1)
+			if ((url.offset = stat_request(&child_ibuf, &child_imsg,
+			    url.fname, NULL)) == -1)
 				break;
 
 		url_request(&url);
 		flags = O_CREAT | O_WRONLY;
 		if (url.offset)
 			flags |= O_APPEND;
-		if ((fd = fd_request(url.fname, flags)) == -1)
+		if ((fd = fd_request(&child_ibuf, &child_imsg,
+		    url.fname, flags)) == -1)
 			break;
 
 		url_save(&url, fd);
@@ -275,53 +261,6 @@ child(int sock, int argc, char **argv)
 	}
 
 	exit(0);
-}
-
-static off_t
-file_stat(const char *fname, int *save_errno)
-{
-	off_t	*poffset;
-	size_t	 len;
-
-	len = strlen(fname) + 1;
-	send_message(&child_ibuf, IMSG_STAT, -1, (char *)fname, len, -1);
-	if (read_message(&child_ibuf, &child_imsg, getppid()) == 0)
-		return -1;
-
-	if (child_imsg.hdr.type != IMSG_STAT)
-		errx(1, "%s: IMSG_STAT expected", __func__);
-
-	len = child_imsg.hdr.len - IMSG_HEADER_SIZE;
-	if (len != sizeof(off_t))
-		errx(1, "%s: imsg size mismatch", __func__);
-
-	if (save_errno)
-		*save_errno = child_imsg.hdr.peerid;
-
-	poffset = child_imsg.data;
-	return *poffset;
-}
-
-static int
-fd_request(const char *fname, int flags)
-{
-	struct open_req	req;
-
-	if (strlcpy(req.fname, fname, sizeof req.fname) >= sizeof req.fname)
-		errx(1, "%s: filename overflow", __func__);
-
-	req.flags = flags;
-	send_message(&child_ibuf, IMSG_OPEN, -1, &req, sizeof req, -1);
-	if (read_message(&child_ibuf, &child_imsg, getppid()) == 0)
-		return -1;
-
-	if (child_imsg.hdr.type != IMSG_OPEN)
-		errx(1, "%s: IMSG_OPEN expected", __func__);
-
-	if (child_imsg.fd == -1)
-		errx(1, "%s: expected a file descriptor", __func__);
-
-	return child_imsg.fd;
 }
 
 static void
@@ -335,14 +274,15 @@ url_connect(struct url *url, int timeout)
 	case S_FTP:
 		ftp_connect(url, timeout);
 		break;
+	case S_FILE:
+		file_connect(&child_ibuf, &child_imsg, url);
+		break;
 	}
 }
 
 static void
 url_request(struct url *url)
 {
-	int	save_errno;
-
 	log_request(url);
 	switch (url->scheme) {
 	case S_HTTP:
@@ -353,10 +293,7 @@ url_request(struct url *url)
 		ftp_get(url);
 		break;
 	case S_FILE:
-		if ((url->file_sz = file_stat(url->path, &save_errno)) == -1) {
-			errno = save_errno;
-			err(1, "Can't open file %s", url->path);
-		}
+		file_request(&child_ibuf, &child_imsg, url);
 		break;
 	}
 }
@@ -391,70 +328,12 @@ url_save(struct url *url, int fd)
 		ftp_save(url, fd);
 		break;
 	case S_FILE:
-		file_save(url, fd);
+		file_save(&child_ibuf, &child_imsg, url, fd);
 		break;
 	}
 
 	if (progressmeter)
 		stop_progress_meter();
-}
-
-static void
-file_save(struct url *url, int dst_fd)
-{
-	FILE	*fp;
-	int	 src_fd;
-	ssize_t	 r;
-
-	if ((src_fd = fd_request(url->path, O_RDONLY)) == -1)
-		exit(0);
-
-	if ((fp = fdopen(dst_fd, "w")) == NULL)
-		err(1, "%s: fdopen", __func__);
-
-	while ((r = read(src_fd, tmp_buf, TMPBUF_LEN)) != 0) {
-		if (r == -1)
-			err(1, "%s: read", __func__);
-
-		url->offset += r;
-		if (fwrite(tmp_buf, r, 1, fp) != 1)
-			err(1, "%s: fwrite", __func__);
-	}
-
-	fclose(fp);
-	close(src_fd);
-}
-
-static void
-send_message(struct imsgbuf *ibuf, int type, uint32_t peerid,
-    void *msg, size_t msglen, int fd)
-{
-	if (imsg_compose(ibuf, type, peerid, 0, fd, msg, msglen) != 1)
-		err(1, "imsg_compose");
-
-	if (imsg_flush(ibuf) != 0)
-		err(1, "imsg_flush");
-}
-
-static int
-read_message(struct imsgbuf *ibuf, struct imsg *imsg, pid_t from)
-{
-	int	n;
-
-	if ((n = imsg_read(ibuf)) == -1)
-		err(1, "imsg_read");
-	if (n == 0)
-		return 0;
-
-	if ((n = imsg_get(ibuf, imsg)) == -1)
-		err(1, "imsg_get");
-	if (n == 0)
-		return 0;
-
-	if ((pid_t)imsg->hdr.pid != from)
-		errx(1, "PIDs don't match");
-
-	return n;
 }
 
 static void

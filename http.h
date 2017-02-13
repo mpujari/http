@@ -29,7 +29,14 @@
 #define S_FTP	2
 #define S_FILE	3
 
+enum {
+	IMSG_STAT,
+	IMSG_OPEN
+};
+
 struct tls;
+struct imsg;
+struct imsgbuf;
 
 struct url {
 	char		 host[MAXHOSTNAMELEN+1];
@@ -41,6 +48,16 @@ struct url {
 	off_t		 offset;
 	int		 scheme;
 };
+
+struct open_req {
+	char	fname[FILENAME_MAX];
+	int	flags;
+};
+
+/* file.c */
+void	file_connect(struct imsgbuf *, struct imsg *, struct url *);
+void	file_request(struct imsgbuf *, struct imsg *, struct url *);
+void	file_save(struct imsgbuf *, struct imsg *, struct url *, int);
 
 /* ftp.c */
 void	ftp_connect(struct url *, int);
@@ -86,3 +103,7 @@ char	*url_encode(const char *);
 int	 tcp_connect(const char *, const char *, int);
 void	 proxy_connect(struct url *, int);
 char	*xstrdup(const char *, const char *);
+off_t	stat_request(struct imsgbuf *, struct imsg *, const char *, int *);
+int	fd_request(struct imsgbuf *, struct imsg *, const char *, int);
+int	read_message(struct imsgbuf *, struct imsg *, pid_t);
+void	send_message(struct imsgbuf *, int, uint32_t, void *, size_t, int);
