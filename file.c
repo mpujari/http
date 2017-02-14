@@ -27,13 +27,18 @@
 
 #include "http.h"
 
-static int	src_fd;
+static FILE	*src_fp;
 
 void
 file_connect(struct imsgbuf *ibuf, struct imsg *imsg, struct url *url)
 {
+	int	src_fd;
+
 	if ((src_fd = fd_request(ibuf, imsg, url->path, O_RDONLY)) == -1)
 		errx(1, "%s: fd_request", __func__);
+
+	if ((src_fp = fdopen(src_fd, "r")) == NULL)
+		err(1, "%s: fdopen", __func__);
 }
 
 void
@@ -51,22 +56,21 @@ file_request(struct imsgbuf *ibuf, struct imsg *imsg, struct url *url)
 void
 file_save(struct imsgbuf *ibuf, struct imsg *imsg, struct url *url, int dst_fd)
 {
-	FILE	*fp;
+	FILE	*dst_fp;
 	ssize_t	 r;
 
-	if ((fp = fdopen(dst_fd, "w")) == NULL)
+	if ((dst_fp = fdopen(dst_fd, "w")) == NULL)
 		err(1, "%s: fdopen", __func__);
 
-	/* XXX source is a file too, use stdio */
-	while ((r = read(src_fd, tmp_buf, TMPBUF_LEN)) != 0) {
-		if (r == -1)
-			err(1, "%s: read", __func__);
-
+	while ((r = fread(tmp_buf, 1, TMPBUF_LEN, src_fp)) != 0) {
 		url->offset += r;
-		if (fwrite(tmp_buf, r, 1, fp) != 1)
+		if (fwrite(tmp_buf, 1, r, dst_fp) != r)
 			err(1, "%s: fwrite", __func__);
 	}
 
-	fclose(fp);
-	close(src_fd);
+	if (!feof(src_fp))
+		errx(1, "%s: fread", __func__);
+
+	fclose(dst_fp);
+	fclose(src_fp);
 }
