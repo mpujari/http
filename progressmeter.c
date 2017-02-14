@@ -262,7 +262,7 @@ refresh_progress_meter(void)
 			strlcat(buf, "    ", win_size);
 	}
 
-	write(STDERR_FILENO, buf, win_size - 1);
+	write(STDERR_FILENO, buf, strlen(buf));
 	last_update = now;
 }
 
