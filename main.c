@@ -342,7 +342,7 @@ env_parse(void)
 	char	*proxy_str;
 
 	http_debug = getenv("HTTP_DEBUG") != NULL;
-	if ((proxy_str = getenv("HTTP_PROXY")) == NULL)
+	if ((proxy_str = getenv("http_proxy")) == NULL)
 		return;
 
 	if (strlen(proxy_str) == 0)
