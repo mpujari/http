@@ -56,16 +56,23 @@ static struct imsg	 child_imsg;
 static char		*oarg;
 static int		 connect_timeout;
 static int		 resume;
-static int		 progressmeter = 1;
+static int		 progressmeter;
 static int		 verbose = 1;
 
 int
 main(int argc, char **argv)
 {
 	const char	*errstr;
-	char		*Darg = NULL;
-	int		 ch, mflag = 0, sp[2];
+	char		*Darg = NULL, *term;
+	int		 ch, dumb_terminal, mflag = 0, sp[2];
 	pid_t		 pid;
+
+	term = getenv("TERM");
+	dumb_terminal = (term == NULL || *term == '\0' ||
+	    !strcmp(term, "dumb") || !strcmp(term, "emacs") ||
+	    !strcmp(term, "su"));
+	if (isatty(STDERR_FILENO) && !dumb_terminal)
+		progressmeter = 1;
 
 	while ((ch = getopt(argc, argv, "aCD:o:mMS:U:Vw:")) != -1) {
 		switch (ch) {
@@ -107,9 +114,6 @@ main(int argc, char **argv)
 	}
 	argc -= optind;
 	argv += optind;
-
-	if (isatty(STDOUT_FILENO) == 0)
-		progressmeter = 0;
 
 	if (mflag)
 		progressmeter = 1;
@@ -313,8 +317,8 @@ url_save(struct url *url, int fd)
 		}
 	}
 
-	/* Use basename of path for progressmeter when output is stdout */
-	fname = strcmp(url->fname, "-") == 0 ? basename(url->path) : url->fname;
+	fname = strcmp(url->fname, "-") == 0 ?
+	    basename(url->path) : basename(url->fname);
 
 	if (progressmeter)
 		start_progress_meter(fname, url->file_sz, &url->offset);
@@ -398,7 +402,6 @@ url_parse(struct url *url, const char *url_str)
 		url->path = xstrdup(t, __func__);
 		*t = '\0';
 	}
-
 
 	if (url->scheme == S_FILE)
 		return; /* Ignore hostname, port for file scheme */

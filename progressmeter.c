@@ -69,24 +69,14 @@ static volatile sig_atomic_t win_resized; /* for window resizing */
 static const char *filename;	/* To be displayed in non-verbose mode */
 /* units for format_size */
 static const char unit[] = " KMGT";
-static int can_output;
 static const char *title;
 static int verbose;
 
 void
 init_progress_meter(const char *Darg, int v)
 {
-	char	*term;
-	int	 dumb_terminal;
-
 	title = Darg;
 	verbose = v;
-	term = getenv("TERM");
-	dumb_terminal = (term == NULL || *term == '\0' ||
-	    !strcmp(term, "dumb") || !strcmp(term, "emacs") ||
-	    !strcmp(term, "su"));
-	can_output = (getpgrp() == tcgetpgrp(STDERR_FILENO) &&
-	    isatty(STDERR_FILENO) && !dumb_terminal);
 }
 
 time_t
@@ -278,8 +268,7 @@ update_progress_meter(int ignore)
 		win_resized = 0;
 	}
 
-	if (can_output)
-		refresh_progress_meter();
+	refresh_progress_meter();
 
 	signal(SIGALRM, update_progress_meter);
 	alarm(UPDATE_INTERVAL);
@@ -306,8 +295,8 @@ start_progress_meter(const char *fn, off_t filesize, off_t *ctr)
 		return;
 
 	setscreensize();
-	if (can_output)
-		refresh_progress_meter();
+
+	refresh_progress_meter();
 
 	signal(SIGALRM, update_progress_meter);
 	signal(SIGWINCH, sig_winch);
@@ -317,8 +306,8 @@ start_progress_meter(const char *fn, off_t filesize, off_t *ctr)
 void
 stop_progress_meter(void)
 {
-	char		rate_str[32];
-	double		elapsed;
+	char	rate_str[32];
+	double	elapsed;
 
 	/*
 	 * Suppress progressmeter if filesize isn't known when
@@ -330,10 +319,10 @@ stop_progress_meter(void)
 	alarm(0);
 
 	/* Ensure we complete the progress */
-	if (end_pos && cur_pos != end_pos && can_output)
+	if (end_pos && cur_pos != end_pos)
 		refresh_progress_meter();
 
-	if (end_pos && can_output)
+	if (end_pos)
 		write(STDERR_FILENO, "\n", 1);
 
 	if (!verbose)
