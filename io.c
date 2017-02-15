@@ -28,7 +28,20 @@ static ssize_t	buflen;
 
 static ssize_t	buffered_read(int, char *);
 static ssize_t	tls_buffered_read(struct tls *, char *);
-ssize_t		vwriteline(int, const char *, va_list);
+static ssize_t	readline_internal(struct tls *, int, void *buf, size_t);
+static ssize_t	vwriteline_internal(struct tls *,int, const char *, va_list);
+
+ssize_t
+readline(int fd, void *buf, size_t len)
+{
+	return readline_internal(NULL, fd, buf, len);
+}
+
+ssize_t
+tls_readline(struct tls *ctx, char *buf, size_t len)
+{
+	return readline_internal(ctx, -1, buf, len);
+}
 
 ssize_t
 buffer_drain(int fd)
@@ -104,56 +117,19 @@ again:
 	return 1;
 }
 
-ssize_t
-readline(int fd, void *buf, size_t len)
+static ssize_t
+readline_internal(struct tls *ctx, int fd, void *buf, size_t len)
 {
 	ssize_t	n, nread;
 	char	c = 0, *p;
 
 	p = buf;
 	for (n = 1; n < len; n++) {
-		nread = buffered_read(fd, &c);
-		switch (nread) {
-		case 1:
-			*p++ = c;
-			if (c == '\n')
-				goto done;
-			break;
-		case 0:
-			return 0;
-		default:
-			return -1;
-		}
-	}
+		if (ctx)
+			nread = tls_buffered_read(ctx, &c);
+		else
+			nread = buffered_read(fd, &c);
 
-done:
-	if (c != '\n')
-		errx(1, "readline: Line too long");
-
-	*p = '\0';
-	if (http_debug)
-		fprintf(stderr, ">>> %s", (char *)buf);
-
-	/* strip \r\n */
-	*(p - 1) = '\0';
-	n--;
-	if (*(p - 2) == '\r') {
-		*(p - 2) = '\0';
-		n--;
-	}
-
-	return n;
-}
-
-ssize_t
-tls_readline(struct tls *ctx, char *buf, size_t len)
-{
-	ssize_t	n, nread;
-	char	c = 0, *p;
-
-	p = buf;
-	for (n = 1; n < len; n++) {
-		nread = tls_buffered_read(ctx, &c);
 		switch (nread) {
 		case 1:
 			*p++ = c;
@@ -175,6 +151,7 @@ done:
 	if (http_debug)
 		fprintf(stderr, ">>> %s", (char *)buf);
 
+	/* strip \r\n */
 	*(p - 1) = '\0';
 	n--;
 	if (*(p - 2) == '\r') {
@@ -198,7 +175,31 @@ writeline(int fd, const char *fmt, ...)
 }
 
 ssize_t
+tls_writeline(struct tls *ctx, const char *fmt, ...)
+{
+	ssize_t	r;
+	va_list	ap;
+
+	va_start(ap, fmt);
+	r = tls_vwriteline(ctx, fmt, ap);
+	va_end(ap);
+	return r;
+}
+
+ssize_t
 vwriteline(int fd, const char *fmt, va_list ap)
+{
+	return vwriteline_internal(NULL, fd, fmt, ap);
+}
+
+ssize_t
+tls_vwriteline(struct tls *ctx, const char *fmt, va_list ap)
+{
+	return vwriteline_internal(ctx, -1, fmt, ap);
+}
+
+static ssize_t
+vwriteline_internal(struct tls *ctx, int fd, const char *fmt, va_list ap)
 {
 	ssize_t	nwritten;
 	size_t	nleft;
@@ -220,64 +221,20 @@ vwriteline(int fd, const char *fmt, va_list ap)
 	p = buf;
 	nleft = n;
 	while (nleft > 0) {
-		nwritten = write(fd, p, nleft);
+		if (ctx) {
+			do {
+				nwritten = tls_write(ctx, p, nleft);
+			} while (nwritten == TLS_WANT_POLLIN ||
+			    nwritten == TLS_WANT_POLLOUT);
+		} else
+			nwritten = write(fd, p, nleft);
+
 		switch (nwritten) {
 		case -1:
-			err(1, "write");
-		case 0:
-			return 0;
-		default:
-			nleft -= nwritten;
-			p += nwritten;
-		}
-	}
-
-	return n;
-}
-
-ssize_t
-tls_writeline(struct tls *ctx, const char *fmt, ...)
-{
-	ssize_t	r;
-	va_list	ap;
-
-	va_start(ap, fmt);
-	r = tls_vwriteline(ctx, fmt, ap);
-	va_end(ap);
-	return r;
-}
-
-ssize_t
-tls_vwriteline(struct tls *ctx, const char *fmt, va_list ap)
-{
-	ssize_t	nwritten;
-	size_t	nleft;
-	int	n;
-	char	buf[MAX_LINE], *p;
-
-	n = vsnprintf(buf, sizeof buf, fmt, ap);
-	if (n == -1)
-		errx(1, "%s: vsnprintf failed", __func__);
-	else if (n >= MAX_LINE)
-		errx(1, "%s: Line too long", __func__);
-
-	if ((n = strlcat(buf, "\r\n", sizeof buf)) >= sizeof buf)
-		errx(1, "%s: buffer overflow", __func__);
-
-	if (http_debug)
-		fprintf(stderr, "<<< %s", buf);
-
-	p = buf;
-	nleft = n;
-	while (nleft > 0) {
-again:
-		nwritten = tls_write(ctx, p, nleft);
-		switch (nwritten) {
-		case TLS_WANT_POLLIN:
-		case TLS_WANT_POLLOUT:
-			goto again;
-		case -1:
-			errx(1, "tls_write");
+			if (ctx)
+				errx(1, "tls_write");
+			else
+				err(1, "write");
 		case 0:
 			return 0;
 		default:
