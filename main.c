@@ -115,6 +115,9 @@ main(int argc, char **argv)
 	argc -= optind;
 	argv += optind;
 
+	if (isatty(STDOUT_FILENO) == 0)
+		progressmeter = 0;
+
 	if (mflag)
 		progressmeter = 1;
 
