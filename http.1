@@ -163,16 +163,16 @@ ftp format.
 .Xc
 .Sm on
 An FTP URL, retrieved using the FTP protocol if
-.Ev HTTP_PROXY
+.Ev http_proxy
 isn't defined.
 Otherwise, transfer using HTTP via the proxy defined in
-.Ev HTTP_PROXY .
+.Ev http_proxy .
 If a
 .Ar user
 and
 .Ar password
 are given and
-.Ev HTTP_PROXY
+.Ev http_proxy
 isn't defined,
 log in as
 .Ar user
@@ -187,14 +187,14 @@ with a password of
 .Sm on
 An HTTP URL, retrieved using the HTTP protocol.
 If
-.Ev HTTP_PROXY
+.Ev http_proxy
 is defined, it is used as a URL to an HTTP proxy server.
 If a
 .Ar user
 and
 .Ar password
 are given and
-.Ev HTTP_PROXY
+.Ev http_proxy
 isn't defined,
 log in as
 .Ar user
@@ -210,7 +210,7 @@ using Basic authentication.
 .Sm on
 An HTTPS URL, retrieved using the HTTPS protocol.
 If
-.Ev HTTP_PROXY
+.Ev http_proxy
 is defined, this HTTPS proxy server will be used to fetch the
 file using the CONNECT method.
 If a
@@ -218,7 +218,7 @@ If a
 and
 .Ar password
 are given and
-.Ev HTTP_PROXY
+.Ev http_proxy
 isn't defined,
 log in as
 .Ar user
@@ -230,6 +230,6 @@ using Basic authentication.
 .Nm
 utilizes the following environment variables:
 .Bl -tag -width Ds
-.It Ev HTTP_PROXY
+.It Ev http_proxy
 URL of HTTP proxy to use when making HTTP(S) URL requests.
 .El
