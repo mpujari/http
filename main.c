@@ -64,14 +64,14 @@ main(int argc, char **argv)
 {
 	const char	*errstr;
 	char		*Darg = NULL, *term;
-	int		 ch, dumb_terminal, mflag = 0, sp[2];
+	int		 ch, dumb_terminal, sp[2];
 	pid_t		 pid;
 
 	term = getenv("TERM");
 	dumb_terminal = (term == NULL || *term == '\0' ||
 	    !strcmp(term, "dumb") || !strcmp(term, "emacs") ||
 	    !strcmp(term, "su"));
-	if (isatty(STDERR_FILENO) && !dumb_terminal)
+	if (isatty(STDOUT_FILENO) && isatty(STDERR_FILENO) && !dumb_terminal)
 		progressmeter = 1;
 
 	while ((ch = getopt(argc, argv, "aCD:o:mMS:U:Vw:")) != -1) {
@@ -89,7 +89,7 @@ main(int argc, char **argv)
 			progressmeter = 0;
 			break;
 		case 'm':
-			mflag = 1;
+			progressmeter = 1;
 			break;
 		case 'S':
 			tls_options = optarg;
@@ -114,12 +114,6 @@ main(int argc, char **argv)
 	}
 	argc -= optind;
 	argv += optind;
-
-	if (isatty(STDOUT_FILENO) == 0)
-		progressmeter = 0;
-
-	if (mflag)
-		progressmeter = 1;
 
 	if (progressmeter) {
 		init_progress_meter(Darg, verbose);
