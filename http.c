@@ -354,13 +354,12 @@ http_save(struct url *url, int fd)
 			err(1, "%s: fwrite", __func__);
 	}
 
-	fclose(fp);
-	if (url->scheme == S_HTTP)
-		close(sock);
-	else {
+ 	fclose(fp);
+	if (url->scheme == S_HTTPS) {
 		tls_close(ctx);
 		tls_free(ctx);
 	}
+	close(sock);
 }
 
 static int
