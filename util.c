@@ -284,8 +284,5 @@ read_message(struct imsgbuf *ibuf, struct imsg *imsg, pid_t from)
 	if (n == 0)
 		return 0;
 
-	if ((pid_t)imsg->hdr.pid != from)
-		errx(1, "PIDs don't match");
-
 	return n;
 }
