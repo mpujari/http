@@ -482,11 +482,9 @@ log_request(struct url *url)
 __dead void
 usage(void)
 {
-	extern char	*__progname;
-
 	fprintf(stderr, "usage: %s [-CVM] [-D title] [-o output] "
 	    "[-S tls_options] [-U useragent] "
-	    "[-w seconds] url ...\n", __progname);
+	    "[-w seconds] url ...\n", getprogname());
 
 	exit(1);
 }
