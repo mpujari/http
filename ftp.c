@@ -100,17 +100,17 @@ ftp_get(struct url *url)
 
 	if ((data_sock = ftp_pasv(ctrl_sock)) == -1)
 		errx(1, "error retrieving file %s", url->fname);
+
+	if (ftp_command(ctrl_sock, "RETR %s", url->fname) != P_PRE)
+		errx(1, "error retrieving file %s", url->fname);
+
 }
 
 void
 ftp_save(struct url *url, int fd)
 {
 	FILE	*fp;
-	char	 buf[MAX_LINE];
 	ssize_t	 r;
-
-	if (ftp_command(ctrl_sock, "RETR %s", url->fname) != P_PRE)
-		goto error;
 
 	if ((fp = fdopen(fd, "w")) == NULL)
 		err(1, "%s: fdopen", __func__);
@@ -125,15 +125,19 @@ ftp_save(struct url *url, int fd)
 	}
 
 	fclose(fp);
+}
+
+void
+ftp_quit(struct url *url)
+{
+	char	 buf[MAX_LINE];
+
 	if (ftp_readline(ctrl_sock, buf, sizeof buf) != P_OK)
-		goto error;
+		errx(1, "error retrieving file %s", url->fname);
 
 	ftp_command(ctrl_sock, "QUIT");
 	close(ctrl_sock);
-	return;
 
- error:
-	errx(1, "error retrieving file %s", url->fname);
 }
 
 static ssize_t

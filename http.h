@@ -62,6 +62,7 @@ void	file_save(struct imsgbuf *, struct imsg *, struct url *, int);
 /* ftp.c */
 void	ftp_connect(struct url *, int);
 void	ftp_get(struct url *);
+void	ftp_quit(struct url *);
 void	ftp_save(struct url *, int);
 
 /* http.c */

@@ -337,6 +337,9 @@ url_save(struct url *url, int fd)
 
 	if (progressmeter)
 		stop_progress_meter();
+
+	if (url->scheme == S_FTP)
+		ftp_quit(url);
 }
 
 static void
