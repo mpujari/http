@@ -51,6 +51,7 @@ char		*tls_options;
 struct url	*proxy;
 int		 http_debug;
 
+static	const char	*scheme_str[] = { "http", "https", "ftp", "file" };
 static struct imsgbuf	 child_ibuf;
 static struct imsg	 child_imsg;
 static char		*oarg;
@@ -160,7 +161,7 @@ parent(int sock, pid_t child_pid, int argc, char **argv)
 	const char	*fn;
 	size_t		 datalen;
 	off_t		 offset;
-	int		 fd, flags, status;
+	int		 fd, flags, sig, status;
 
 	if (pledge("stdio cpath rpath wpath sendfd", NULL) == -1)
 		err(1, "pledge");
@@ -186,7 +187,7 @@ parent(int sock, pid_t child_pid, int argc, char **argv)
 
 			req = imsg.data;
 			if (strcmp(req->fname, "-") == 0)
-				fd = STDOUT_FILENO;
+				fd = dup(STDOUT_FILENO);
 			else {
 				fd = open(req->fname, req->flags, 0666);
 				if (fd == -1)
@@ -203,8 +204,9 @@ parent(int sock, pid_t child_pid, int argc, char **argv)
 	if (waitpid(child_pid, &status, 0) == -1 && errno != ECHILD)
 		err(1, "wait");
 
-	if (WIFSIGNALED(status))
-		errx(1, "child terminated: signal %d", WTERMSIG(status));
+	sig = WTERMSIG(status);
+	if (WIFSIGNALED(status) && sig != SIGPIPE)
+		errx(1, "child terminated: signal %d", sig);
 
 	return WEXITSTATUS(status);
 }
@@ -252,8 +254,8 @@ child(int sock, int argc, char **argv)
 		flags = O_CREAT | O_WRONLY;
 		if (url.offset)
 			flags |= O_APPEND;
-		if ((fd = fd_request(&child_ibuf, &child_imsg,
-		    url.fname, flags)) == -1)
+		fd = fd_request(&child_ibuf, &child_imsg, url.fname, flags);
+		if (fd == -1)
 			break;
 
 		url_save(&url, fd);
@@ -401,7 +403,7 @@ url_parse(struct url *url, const char *url_str)
 	}
 
 	if (url->scheme == S_FILE)
-		return; /* Ignore hostname, port for file scheme */
+		goto end;
 
 	/* hostname and port */
 	if ((t = strchr(url_str, ':')) != NULL)	{
@@ -412,6 +414,12 @@ url_parse(struct url *url, const char *url_str)
 
 	if (strlcpy(url->host, url_str, sizeof url->host) >= sizeof url->host)
 		errx(1, "%s: hostname too long", __func__);
+
+ end:
+	if (http_debug)
+		fprintf(stderr,
+		    "scheme: %s\nhost: %s\nport: %s\npath: %s\n",
+		    scheme_str[url->scheme], url->host, url->port, url->path);
 }
 
 void
@@ -430,8 +438,7 @@ log_info(const char *fmt, ...)
 void
 log_request(struct url *url)
 {
-	const char	*scheme_str[] = { "http", "https", "ftp", "file" };
-	int		 custom_port = 0;
+	int	custom_port = 0;
 
 	switch (url->scheme) {
 	case S_HTTP:
