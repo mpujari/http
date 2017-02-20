@@ -27,7 +27,9 @@
 
 #include "http.h"
 
-#define MAX_REDIRECTS 10
+#define	DEFAULT_CA_FILE	"/etc/ssl/cert.pem"
+#define MAX_REDIRECTS	10
+
 
 /*
  * HTTP status codes based on IANA assignments (2014-06-11 version):
@@ -154,7 +156,7 @@ https_init(void)
 	char		*str;
 	int		 depth;
 	uint32_t	 http_tls_protocols;
-	const char	*errstr;
+	const char	*ca_file = DEFAULT_CA_FILE, *errstr;
 
 	if (tls_init() != 0)
 		errx(1, "tls_init failed");
@@ -162,16 +164,12 @@ https_init(void)
 	if ((tls_config = tls_config_new()) == NULL)
 		errx(1, "tls_config_new failed");
 
-	if (tls_options == NULL)
-		return;
-
-	while (*tls_options) {
+	while (tls_options && *tls_options) {
 		switch (getsubopt(&tls_options, tls_verify_opts, &str)) {
 		case HTTP_TLS_CAFILE:
 			if (str == NULL)
 				errx(1, "missing CA file");
-			if (tls_config_set_ca_file(tls_config, str) != 0)
-				errx(1, "tls ca file failed");
+			ca_file = str;
 			break;
 		case HTTP_TLS_CAPATH:
 			if (str == NULL)
@@ -209,6 +207,9 @@ https_init(void)
 			    suboptarg ? suboptarg : "");
 		}
 	}
+
+	if (tls_config_set_ca_file(tls_config, ca_file) == -1)
+		errx(1, "tls_config_set_ca_mem failed");
 }
 
 void

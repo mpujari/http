@@ -219,12 +219,11 @@ child(int sock, int argc, char **argv)
 	off_t		*poff;
 	int		 fd, flags, i;
 
-	/* XXX libtls will provide hook to preload cert.pem, then drop rpath */
 	if (progressmeter) {
-		if (pledge("stdio rpath inet dns recvfd tty", NULL) == -1)
+		if (pledge("stdio inet dns recvfd tty", NULL) == -1)
 			err(1, "pledge");
 	} else {
-		if (pledge("stdio rpath inet dns recvfd", NULL) == -1)
+		if (pledge("stdio inet dns recvfd", NULL) == -1)
 			err(1, "pledge");
 	}
 
