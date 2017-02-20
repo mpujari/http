@@ -418,10 +418,11 @@ url_parse(struct url *url, const char *url_str)
 		errx(1, "%s: hostname too long", __func__);
 
  end:
-	if (http_debug)
+	if (http_debug) {
 		fprintf(stderr,
 		    "scheme: %s\nhost: %s\nport: %s\npath: %s\n",
 		    scheme_str[url->scheme], url->host, url->port, url->path);
+	}
 }
 
 void
