@@ -209,7 +209,7 @@ https_init(void)
 	}
 
 	if (tls_config_set_ca_file(tls_config, ca_file) == -1)
-		errx(1, "tls_config_set_ca_mem failed");
+		errx(1, "tls_config_set_ca_file failed");
 }
 
 void

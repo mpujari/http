@@ -219,7 +219,7 @@ stat_request(struct imsgbuf *ibuf, struct imsg *imsg,
 
 	len = strlen(fname) + 1;
 	send_message(ibuf, IMSG_STAT, -1, (char *)fname, len, -1);
-	if (read_message(ibuf, imsg, getppid()) == 0)
+	if (read_message(ibuf, imsg) == 0)
 		return -1;
 
 	if (imsg->hdr.type != IMSG_STAT)
@@ -246,7 +246,7 @@ fd_request(struct imsgbuf *ibuf, struct imsg *imsg,
 
 	req.flags = flags;
 	send_message(ibuf, IMSG_OPEN, -1, &req, sizeof req, -1);
-	if (read_message(ibuf, imsg, getppid()) == 0)
+	if (read_message(ibuf, imsg) == 0)
 		return -1;
 
 	if (imsg->hdr.type != IMSG_OPEN)
@@ -270,7 +270,7 @@ send_message(struct imsgbuf *ibuf, int type, uint32_t peerid,
 }
 
 int
-read_message(struct imsgbuf *ibuf, struct imsg *imsg, pid_t from)
+read_message(struct imsgbuf *ibuf, struct imsg *imsg)
 {
 	int	n;
 

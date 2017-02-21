@@ -168,7 +168,7 @@ parent(int sock, pid_t child_pid, int argc, char **argv)
 
 	imsg_init(&ibuf, sock);
 	for (;;) {
-		if (read_message(&ibuf, &imsg, child_pid) == 0)
+		if (read_message(&ibuf, &imsg) == 0)
 			break;
 
 		switch (imsg.hdr.type) {

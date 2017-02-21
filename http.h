@@ -106,5 +106,5 @@ void	 proxy_connect(struct url *, int);
 char	*xstrdup(const char *, const char *);
 off_t	stat_request(struct imsgbuf *, struct imsg *, const char *, int *);
 int	fd_request(struct imsgbuf *, struct imsg *, const char *, int);
-int	read_message(struct imsgbuf *, struct imsg *, pid_t);
+int	read_message(struct imsgbuf *, struct imsg *);
 void	send_message(struct imsgbuf *, int, uint32_t, void *, size_t, int);
