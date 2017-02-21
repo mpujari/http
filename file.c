@@ -14,18 +14,16 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <sys/uio.h>
-#include <sys/queue.h>
-
 #include <errno.h>
 #include <err.h>
 #include <fcntl.h>
-#include <imsg.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <unistd.h>
 
 #include "http.h"
+
+struct imsgbuf;
+struct imsg;
 
 static FILE	*src_fp;
 
@@ -54,7 +52,7 @@ file_request(struct imsgbuf *ibuf, struct imsg *imsg, struct url *url)
 }
 
 void
-file_save(struct imsgbuf *ibuf, struct imsg *imsg, struct url *url, int dst_fd)
+file_save(struct url *url, int dst_fd)
 {
 	FILE	*dst_fp;
 	ssize_t	 r;

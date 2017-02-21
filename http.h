@@ -57,7 +57,7 @@ struct open_req {
 /* file.c */
 void	file_connect(struct imsgbuf *, struct imsg *, struct url *);
 void	file_request(struct imsgbuf *, struct imsg *, struct url *);
-void	file_save(struct imsgbuf *, struct imsg *, struct url *, int);
+void	file_save(struct url *, int);
 
 /* ftp.c */
 void	ftp_connect(struct url *, int);

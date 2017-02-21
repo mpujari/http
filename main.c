@@ -29,6 +29,7 @@
 #include <libgen.h>
 #include <netdb.h>
 #include <resolv.h>
+#include <signal.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -330,7 +331,7 @@ url_save(struct url *url, int fd)
 		ftp_save(url, fd);
 		break;
 	case S_FILE:
-		file_save(&child_ibuf, &child_imsg, url, fd);
+		file_save(url, fd);
 		break;
 	}
 
