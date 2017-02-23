@@ -30,7 +30,6 @@
 #define	DEFAULT_CA_FILE	"/etc/ssl/cert.pem"
 #define MAX_REDIRECTS	10
 
-
 /*
  * HTTP status codes based on IANA assignments (2014-06-11 version):
  * https://www.iana.org/assignments/http-status-codes/http-status-codes.xhtml

@@ -52,7 +52,7 @@ char		*tls_options;
 struct url	*proxy;
 int		 http_debug;
 
-static	const char	*scheme_str[] = { "http", "https", "ftp", "file" };
+static const char	*scheme_str[] = { "http", "https", "ftp", "file" };
 static struct imsgbuf	 child_ibuf;
 static struct imsg	 child_imsg;
 static char		*oarg;
