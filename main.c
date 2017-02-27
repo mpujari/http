@@ -41,6 +41,7 @@
 static void	child(int, int, char **);
 static void	env_parse(void);
 static int	parent(int, pid_t, int, char **);
+static void	re_exec(int, int, char **);
 static void	url_connect(struct url *, int);
 static void	url_request(struct url *);
 static void	url_save(struct url *, int);
@@ -64,9 +65,9 @@ static int		 verbose = 1;
 int
 main(int argc, char **argv)
 {
-	const char	*errstr;
-	char		*Darg = NULL, *term;
-	int		 ch, dumb_terminal, sp[2];
+	const char	*e;
+	char		*Darg = NULL, **save_argv, *term;
+	int		 ch, csock, dumb_terminal, rexec = 0, save_argc, sp[2];
 	pid_t		 pid;
 
 	term = getenv("TERM");
@@ -76,7 +77,9 @@ main(int argc, char **argv)
 	if (isatty(STDOUT_FILENO) && isatty(STDERR_FILENO) && !dumb_terminal)
 		progressmeter = 1;
 
-	while ((ch = getopt(argc, argv, "aCD:o:mMS:U:Vw:")) != -1) {
+	save_argc = argc;
+	save_argv = argv;
+	while ((ch = getopt(argc, argv, "aCD:o:mMS:s:U:Vw:x")) != -1) {
 		switch (ch) {
 		case 'C':
 			resume = 1;
@@ -103,12 +106,21 @@ main(int argc, char **argv)
 			verbose = 0;
 			break;
 		case 'w':
-			connect_timeout = strtonum(optarg, 0, 200, &errstr);
-			if (errstr)
-				errx(1, "-w: %s", errstr);
+			connect_timeout = strtonum(optarg, 0, 200, &e);
+			if (e)
+				errx(1, "-w: %s", e);
 			break;
 		/* options for compatibility, on by default */
 		case 'a':
+			break;
+		/* options for internal use only */
+		case 'x':
+			rexec = 1;
+			break;
+		case 's':
+			csock = strtonum(optarg, 3, getdtablesize() - 1, &e);
+			if (e)
+				errx(1, "-s: %s", e);
 			break;
 		default:
 			usage();
@@ -119,11 +131,11 @@ main(int argc, char **argv)
 
 	if (progressmeter) {
 		init_progress_meter(Darg, verbose);
-		if (pledge("stdio cpath wpath rpath inet dns recvfd sendfd proc tty",
+		if (pledge("exec stdio cpath wpath rpath inet dns recvfd sendfd proc tty",
 		    NULL) == -1)
 			err(1, "pledge");
 	} else {
-		if (pledge("stdio cpath wpath rpath inet dns recvfd sendfd proc",
+		if (pledge("exec stdio cpath wpath rpath inet dns recvfd sendfd proc",
 		    NULL) == -1)
 			err(1, "pledge");
 	}
@@ -140,16 +152,50 @@ main(int argc, char **argv)
 	if (socketpair(AF_UNIX, SOCK_STREAM, PF_UNSPEC, sp) != 0)
 		err(1, "socketpair");
 
+	if (rexec)
+		child(csock, argc, argv);
+
 	switch (pid = fork()) {
 	case -1:
 		err(1, "fork");
 	case 0:
 		close(sp[0]);
-		child(sp[1], argc, argv);
+		re_exec(sp[1], save_argc, save_argv);
 	}
 
 	close(sp[1]);
 	return parent(sp[0], pid, argc, argv);
+}
+
+static void
+re_exec(int sock, int argc, char **argv)
+{
+	char	**nargv, sock_buf[8];
+	int	  i, j, nargc;
+
+	nargc = argc + 4;
+	if ((nargv = calloc(nargc, sizeof(*nargv))) == NULL)
+		err(1, "calloc");
+
+	(void)snprintf(sock_buf, sizeof sock_buf, "%d", sock);
+
+	i = 0;
+	nargv[i++] = argv[0];
+	nargv[i++] = "-s";
+	nargv[i++] = sock_buf;
+	nargv[i++] = "-x";
+	for (j = 1; j < argc; j++)
+		nargv[i++] = argv[j];
+
+	if (http_debug) {
+		fprintf(stderr, "re-execing: ");
+		for (i = 0; i < nargc; i++)
+			fprintf(stderr, "%s ", nargv[i]);
+		fprintf(stderr, "\n");
+	}
+
+	execvp(nargv[0], nargv);
+	err(1, "execvp");
 }
 
 static int
