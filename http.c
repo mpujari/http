@@ -342,8 +342,15 @@ http_save(struct url *url, int fd)
 			if ((r = read(sock, tmp_buf, TMPBUF_LEN)) == -1)
 				err(1, "%s: read", __func__);
 		} else {
-			if ((r = tls_read(ctx, tmp_buf, TMPBUF_LEN)) == -1)
+ again:
+			r = tls_read(ctx, tmp_buf, TMPBUF_LEN);
+			switch (r) {
+			case TLS_WANT_POLLIN:
+			case TLS_WANT_POLLOUT:
+				goto again;
+			case -1:
 				err(1, "tls_read: %s", tls_error(ctx));
+			}
 		}
 
 		if (r == 0)
@@ -356,7 +363,9 @@ http_save(struct url *url, int fd)
 
  	fclose(fp);
 	if (url->scheme == S_HTTPS) {
-		tls_close(ctx);
+		do {
+			r = tls_close(ctx);
+		} while (r == TLS_WANT_POLLIN || r == TLS_WANT_POLLOUT);
 		tls_free(ctx);
 	}
 	close(sock);
