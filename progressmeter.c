@@ -274,6 +274,7 @@ start_progress_meter(const char *fn, off_t filesize, off_t *ctr)
 	start = last_update = monotime();
 	start_pos = *ctr;
 	cur_pos = 0;
+	end_pos = 0;
 	counter = ctr;
 	stalled = 0;
 	bytes_per_second = 0;
