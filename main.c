@@ -49,9 +49,12 @@ __dead void	usage(void);
 
 char		 tmp_buf[TMPBUF_LEN];
 const char	*ua = "OpenBSD http";
+const char	*title;
 char		*tls_options;
 struct url	*proxy;
 int		 http_debug;
+int		 progressmeter;
+int		 verbose = 1;
 
 static const char	*scheme_str[] = { "http", "https", "ftp", "file" };
 static struct imsgbuf	 child_ibuf;
@@ -59,16 +62,14 @@ static struct imsg	 child_imsg;
 static char		*oarg;
 static int		 connect_timeout;
 static int		 resume;
-static int		 progressmeter;
-static int		 verbose = 1;
 
 int
 main(int argc, char **argv)
 {
-	const char	*e;
-	char		*Darg = NULL, **save_argv, *term;
-	int		 ch, csock, dumb_terminal, rexec = 0, save_argc, sp[2];
-	pid_t		 pid;
+	const char	 *e;
+	char		**save_argv, *term;
+	int		  ch, csock, dumb_terminal, rexec = 0, save_argc, sp[2];
+	pid_t		  pid;
 
 	term = getenv("TERM");
 	dumb_terminal = (term == NULL || *term == '\0' ||
@@ -85,7 +86,7 @@ main(int argc, char **argv)
 			resume = 1;
 			break;
 		case 'D':
-			Darg = optarg;
+			title = optarg;
 			break;
 		case 'o':
 			oarg = optarg;
@@ -130,7 +131,6 @@ main(int argc, char **argv)
 	argv += optind;
 
 	if (progressmeter) {
-		init_progress_meter(Darg, verbose);
 		if (pledge("exec stdio cpath wpath rpath inet dns recvfd sendfd proc tty",
 		    NULL) == -1)
 			err(1, "pledge");
@@ -365,9 +365,7 @@ url_save(struct url *url, int fd)
 	fname = strcmp(url->fname, "-") == 0 ?
 	    basename(url->path) : basename(url->fname);
 
-	if (progressmeter)
-		start_progress_meter(fname, url->file_sz, &url->offset);
-
+	start_progress_meter(fname, url->file_sz, &url->offset);
 	switch (url->scheme) {
 	case S_HTTP:
 	case S_HTTPS:
@@ -381,9 +379,7 @@ url_save(struct url *url, int fd)
 		break;
 	}
 
-	if (progressmeter)
-		stop_progress_meter();
-
+	stop_progress_meter();
 	if (url->scheme == S_FTP)
 		ftp_quit(url);
 }

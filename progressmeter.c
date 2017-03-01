@@ -35,6 +35,8 @@
 #include <time.h>
 #include <unistd.h>
 
+#include "http.h"
+
 #define DEFAULT_WINSIZE 80
 #define MAX_WINSIZE 512
 #define UPDATE_INTERVAL 1	/* update the progress meter every second */
@@ -69,15 +71,6 @@ static volatile sig_atomic_t win_resized; /* for window resizing */
 static const char *filename;	/* To be displayed in non-verbose mode */
 /* units for format_size */
 static const char unit[] = " KMGT";
-static const char *title;
-static int verbose;
-
-void
-init_progress_meter(const char *Darg, int v)
-{
-	title = Darg;
-	verbose = v;
-}
 
 time_t
 monotime(void)
@@ -280,7 +273,6 @@ start_progress_meter(const char *fn, off_t filesize, off_t *ctr)
 {
 	start = last_update = monotime();
 	start_pos = *ctr;
-	end_pos = filesize;
 	cur_pos = 0;
 	counter = ctr;
 	stalled = 0;
@@ -294,8 +286,11 @@ start_progress_meter(const char *fn, off_t filesize, off_t *ctr)
 	if (filesize <= 0)
 		return;
 
-	setscreensize();
+	end_pos = filesize;
+	if (!progressmeter)
+		return;
 
+	setscreensize();
 	refresh_progress_meter();
 
 	signal(SIGALRM, update_progress_meter);
@@ -309,20 +304,13 @@ stop_progress_meter(void)
 	char	rate_str[32];
 	double	elapsed;
 
-	/*
-	 * Suppress progressmeter if filesize isn't known when
-	 * Content-Length header has bogus values.
-	 */
-	if (end_pos <= 0)
-		return;
-
 	alarm(0);
 
 	/* Ensure we complete the progress */
-	if (end_pos && cur_pos != end_pos)
+	if (progressmeter && end_pos && cur_pos != end_pos)
 		refresh_progress_meter();
 
-	if (end_pos)
+	if (progressmeter && end_pos)
 		write(STDERR_FILENO, "\n", 1);
 
 	if (!verbose)

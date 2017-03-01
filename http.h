@@ -85,8 +85,11 @@ ssize_t	tls_vwriteline(struct tls *, const char *, va_list);
 extern char		 tmp_buf[TMPBUF_LEN];
 extern char		*tls_options;
 extern const char	*ua;
+extern const char	*title;
 extern struct url	*proxy;
 extern int		 http_debug;
+extern int		 progressmeter;
+extern int		 verbose;
 
 void	log_info(const char *, ...)
 	    __attribute__((__format__ (printf, 1, 2)))
@@ -95,7 +98,6 @@ void	url_parse(struct url *, const char *);
 void	log_request(struct url *);
 
 /* progressmeter.c */
-void	init_progress_meter(const char *, int);
 void	start_progress_meter(const char *, off_t, off_t *);
 void	stop_progress_meter(void);
 
