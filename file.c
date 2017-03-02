@@ -18,6 +18,7 @@
 #include <err.h>
 #include <fcntl.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 
 #include "http.h"
@@ -33,7 +34,7 @@ file_connect(struct imsgbuf *ibuf, struct imsg *imsg, struct url *url)
 	int	src_fd;
 
 	if ((src_fd = fd_request(ibuf, imsg, url->path, O_RDONLY)) == -1)
-		errx(1, "%s: fd_request", __func__);
+		exit(1);
 
 	if ((src_fp = fdopen(src_fd, "r")) == NULL)
 		err(1, "%s: fdopen", __func__);
