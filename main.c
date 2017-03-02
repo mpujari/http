@@ -233,13 +233,9 @@ parent(int sock, pid_t child_pid, int argc, char **argv)
 				errx(1, "%s: imsg size mismatch", __func__);
 
 			req = imsg.data;
-			if (strcmp(req->fname, "-") == 0)
-				fd = dup(STDOUT_FILENO);
-			else {
-				fd = open(req->fname, req->flags, 0666);
-				if (fd == -1)
-					err(1, "Can't open %s", req->fname);
-			}
+			if ((fd = open(req->fname, req->flags, 0666)) == -1)
+				err(1, "Can't open file %s", req->fname);
+
 			send_message(&ibuf, IMSG_OPEN, -1, NULL, 0, fd);
 			break;
 		}
@@ -300,8 +296,11 @@ child(int sock, int argc, char **argv)
 		flags = O_CREAT | O_WRONLY;
 		if (url.offset)
 			flags |= O_APPEND;
-		fd = fd_request(&child_ibuf, &child_imsg, url.fname, flags);
-		if (fd == -1)
+
+		if (strcmp(url.fname, "-") == 0)
+			fd = dup(STDOUT_FILENO);
+		else if ((fd = fd_request(&child_ibuf, &child_imsg,
+		    url.fname, flags)) == -1)
 			break;
 
 		url_save(&url, fd);
