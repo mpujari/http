@@ -125,6 +125,7 @@ ftp_save(struct url *url, int fd)
 	}
 
 	fclose(fp);
+	close(data_sock);
 }
 
 void
