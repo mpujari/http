@@ -155,10 +155,10 @@ ftp_readline(int fd, char *buf, size_t len)
 		case 0:
 			errx(1, "%s: socket closed", __func__);
 		default:
+			log_info("%s\n", buf);
 			if (r < 4)
 				errx(1, "%s: Response too short", __func__);
 	}
-	log_info("%s\n", buf);
 	(void)strlcpy(code, buf, sizeof code);
 
 	/* multi-line reply */
