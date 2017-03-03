@@ -148,25 +148,38 @@ ftp_readline(int fd, char *buf, size_t len)
 	const char	*errstr;
 	int		 lookup[] = { P_PRE, P_OK, P_INTER, N_TRANS, N_PERM };
 
-	do {
-		r = readline(fd, buf, len);
-		switch (r) {
+	switch (r = readline(fd, buf, len)) {
 		case -1:
 			return -1;
 		case 0:
-			errx(1, "ftp_readline: socket closed");
+			errx(1, "%s: socket closed", __func__);
 		default:
 			if (r < 4)
-				errx(1, "ftp_readline: Response too short");
-		}
-
-		log_info("%s\n", buf);
-	} while (buf[3] != ' ');
-
+				errx(1, "%s: Response too short", __func__);
+	}
+	log_info("%s\n", buf);
 	(void)strlcpy(code, buf, sizeof code);
+
+	/* multi-line reply */
+	if (buf[3] != ' ') {
+		while (!(strncmp(code, buf, 3) == 0 && buf[3] == ' ')) {
+			switch (r = readline (fd, buf, len)) {
+			case -1:
+				return -1;
+			case 0:
+				errx(1, "%s: socket closed", __func__);
+			default:
+				if (r < 4)
+					continue;
+			}
+
+			log_info("%s\n", buf);
+		}
+	}
+
 	(void)strtonum(code, 100, 553, &errstr);
 	if (errstr)
-		errx(1, "ftp_readline: Response code is %s: %s", errstr, code);
+		errx(1, "%s: Response code is %s: %s", __func__, errstr, code);
 
 	return lookup[code[0] - '1'];
 }
