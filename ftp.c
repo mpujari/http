@@ -170,13 +170,10 @@ ftp_readline(int fd, char *buf, size_t len)
 			case 0:
 				errx(1, "%s: socket closed", __func__);
 			default:
-				if (r < 4) {
-					log_info("%s\n", buf);
+				log_info("%s\n", buf);
+				if (r < 4)
 					continue;
-				}
 			}
-
-			log_info("%s\n", buf);
 		}
 	}
 
