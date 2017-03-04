@@ -133,9 +133,7 @@ unsafe_char(const char *c0)
 static void
 tooslow(int signo)
 {
-	extern char	*__progname;
-
-	dprintf(STDERR_FILENO, "%s: connect taking too long\n", __progname);
+	dprintf(STDERR_FILENO, "%s: connect taking too long\n", getprogname());
 	_exit(2);
 }
 
