@@ -290,7 +290,7 @@ child(int sock, int argc, char **argv)
 		if (resume)
 			if ((url.offset = stat_request(&child_ibuf, &child_imsg,
 			    url.fname, NULL)) == -1)
-				break;
+				url.offset = 0;
 
 		url_request(&url);
 		flags = O_CREAT | O_WRONLY;
