@@ -104,7 +104,7 @@ again:
 		case TLS_WANT_POLLOUT:
 			goto again;
 		case -1:
-			errx(1, "tls_read");
+			errx(1, "tls_read: %s", tls_error(ctx));
 		case 0:
 			return 0;
 		default:
@@ -232,7 +232,7 @@ vwriteline_internal(struct tls *ctx, int fd, const char *fmt, va_list ap)
 		switch (nwritten) {
 		case -1:
 			if (ctx)
-				errx(1, "tls_write");
+				errx(1, "tls_write: %s", tls_error(ctx));
 			else
 				err(1, "write");
 		case 0:
