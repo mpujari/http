@@ -288,7 +288,8 @@ http_get(struct url *url)
 
 	switch (code) {
 	case 200:
-		/* while expecting a partial content but got full content */
+		if (url->offset)
+			warnx("Server does not support resume.");
 		url->offset = 0;
 		break;
 	case 206:
