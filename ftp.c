@@ -160,23 +160,24 @@ ftp_readline(int fd, char *buf, size_t len)
 				errx(1, "%s: Response too short", __func__);
 	}
 	(void)strlcpy(code, buf, sizeof code);
+	if (buf[3] == ' ')
+		goto done;
 
 	/* multi-line reply */
-	if (buf[3] != ' ') {
-		while (!(strncmp(code, buf, 3) == 0 && buf[3] == ' ')) {
-			switch (r = readline (fd, buf, len)) {
-			case -1:
-				return -1;
-			case 0:
-				errx(1, "%s: socket closed", __func__);
-			default:
-				log_info("%s\n", buf);
-				if (r < 4)
-					continue;
-			}
+	while (!(strncmp(code, buf, 3) == 0 && buf[3] == ' ')) {
+		switch (r = readline (fd, buf, len)) {
+		case -1:
+			return -1;
+		case 0:
+			errx(1, "%s: socket closed", __func__);
+		default:
+			log_info("%s\n", buf);
+			if (r < 4)
+				continue;
 		}
 	}
 
+ done:
 	(void)strtonum(code, 100, 553, &errstr);
 	if (errstr)
 		errx(1, "%s: Response code is %s: %s", __func__, errstr, code);
