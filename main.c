@@ -129,17 +129,6 @@ main(int argc, char **argv)
 	}
 	argc -= optind;
 	argv += optind;
-
-	if (progressmeter) {
-		if (pledge("exec stdio cpath wpath rpath inet dns recvfd sendfd proc tty",
-		    NULL) == -1)
-			err(1, "pledge");
-	} else {
-		if (pledge("exec stdio cpath wpath rpath inet dns recvfd sendfd proc",
-		    NULL) == -1)
-			err(1, "pledge");
-	}
-
 	if (argc == 0)
 		usage();
 
@@ -147,8 +136,6 @@ main(int argc, char **argv)
 		errx(1, "Can't use -o with multiple urls");
 
 	env_parse();
-	https_init();
-
 	if (socketpair(AF_UNIX, SOCK_STREAM, PF_UNSPEC, sp) != 0)
 		err(1, "socketpair");
 
@@ -262,6 +249,7 @@ child(int sock, int argc, char **argv)
 	off_t		*poff;
 	int		 fd, flags, i;
 
+	https_init();
 	if (progressmeter) {
 		if (pledge("stdio inet dns recvfd tty", NULL) == -1)
 			err(1, "pledge");
