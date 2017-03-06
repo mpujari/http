@@ -298,6 +298,7 @@ http_get(struct url *url)
 	case 302:
 	case 303:
 	case 307:
+		log_info("Redirected to %s\n", headers.location);
 		if (++redirects > MAX_REDIRECTS)
 			errx(1, "Too many redirections requested");
 
@@ -310,7 +311,6 @@ http_get(struct url *url)
 			free(str);
 		}
 
-		log_info("Redirected to %s\n", headers.location);
 		free((void *)headers.location);
 		buffer_drain(-1);
 		url->port[0] = '\0';
