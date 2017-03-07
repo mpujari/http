@@ -146,6 +146,10 @@ static char * const		 tls_verify_opts[] = {
 	"depth",
 #define HTTP_TLS_PROTOCOLS	5
 	"protocols",
+#define HTTP_TLS_MUSTSTAPLE	6
+	"muststaple",
+#define HTTP_TLS_NOVERIFYTIME	7
+	"noverifytime",
 	NULL
 };
 
@@ -200,6 +204,12 @@ https_init(void)
 			if (errstr)
 				errx(1, "Cert validation depth is %s", errstr);
 			tls_config_set_verify_depth(tls_config, depth);
+			break;
+		case HTTP_TLS_MUSTSTAPLE:
+			tls_config_ocsp_require_stapling(tls_config);
+			break;
+		case HTTP_TLS_NOVERIFYTIME:
+			tls_config_insecure_noverifytime(tls_config);
 			break;
 		default:
 			errx(1, "Unknown -S suboption `%s'",

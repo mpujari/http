@@ -118,6 +118,10 @@ is used.
 Refer to the
 .Xr tls_config_parse_protocols 3
 function for other valid protocol string values.
+.It Cm muststaple
+Require the server to present a valid OCSP stapling in the TLS handshake.
+.It Cm noverifytime
+Disable validation of certificate times and OCSP validation.
 .El
 .Pp
 By default, server certificate validation is performed, and if it fails
