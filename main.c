@@ -66,8 +66,9 @@ static int		 resume;
 int
 main(int argc, char **argv)
 {
+	struct url	  url;
 	const char	 *e;
-	char		**save_argv, *term;
+	char		**save_argv, *str, *term;
 	int		  ch, csock, dumb_terminal, rexec = 0, save_argc, sp[2];
 	pid_t		  pid;
 
@@ -136,10 +137,31 @@ main(int argc, char **argv)
 	if (argc == 0)
 		usage();
 
-	if (oarg && argc > 1)
-		errx(1, "Can't use -o with multiple urls");
-
 	env_parse();
+
+	/* optimize 'http -o - url' case. */
+	if (oarg && strcmp(oarg, "-") == 0 && argc == 1) {
+		if (pledge("stdio inet dns rpath tty", NULL) == -1)
+			err(1, "pledge");
+
+		https_init();
+		if (pledge("stdio inet dns tty", NULL) == -1)
+			err(1, "pledge");
+
+		str = url_encode(argv[0]);
+		memset(&url, 0, sizeof url);
+		url_parse(&url, str);
+		free(str);
+		url.fname = oarg;
+		url_connect(&url, connect_timeout);
+		url_request(&url);
+		if (pledge("stdio tty", NULL) == -1)
+			err(1, "pledge");
+
+		url_save(&url, STDOUT_FILENO);
+		return 0;
+	}
+
 	if (rexec)
 		child(csock, argc, argv);
 
@@ -342,16 +364,6 @@ static void
 url_save(struct url *url, int fd)
 {
 	const char	*fname;
-
-	if (oarg) {
-		if (progressmeter) {
-			if (pledge("stdio tty", NULL) == -1)
-				err(1, "pledge");
-		} else {
-			if (pledge("stdio", NULL) == -1)
-				err(1, "pledge");
-		}
-	}
 
 	fname = strcmp(url->fname, "-") == 0 ?
 	    basename(url->path) : basename(url->fname);
