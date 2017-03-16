@@ -136,11 +136,11 @@ main(int argc, char **argv)
 		errx(1, "Can't use -o with multiple urls");
 
 	env_parse();
-	if (socketpair(AF_UNIX, SOCK_STREAM, PF_UNSPEC, sp) != 0)
-		err(1, "socketpair");
-
 	if (rexec)
 		child(csock, argc, argv);
+
+	if (socketpair(AF_UNIX, SOCK_STREAM, PF_UNSPEC, sp) != 0)
+		err(1, "socketpair");
 
 	switch (pid = fork()) {
 	case -1:
