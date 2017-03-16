@@ -47,6 +47,7 @@ static void	url_request(struct url *);
 static void	url_save(struct url *, int);
 __dead void	usage(void);
 
+const char	*scheme_str[] = { "http", "https", "ftp", "file" };
 char		 tmp_buf[TMPBUF_LEN];
 const char	*ua = "OpenBSD http";
 const char	*title;
@@ -56,7 +57,6 @@ int		 http_debug;
 int		 progressmeter;
 int		 verbose = 1;
 
-static const char	*scheme_str[] = { "http", "https", "ftp", "file" };
 static struct imsgbuf	 child_ibuf;
 static struct imsg	 child_imsg;
 static char		*oarg;
@@ -453,61 +453,6 @@ url_parse(struct url *url, const char *url_str)
 		    "scheme: %s\nhost: %s\nport: %s\npath: %s\n",
 		    scheme_str[url->scheme], url->host, url->port, url->path);
 	}
-}
-
-void
-log_info(const char *fmt, ...)
-{
-	va_list	ap;
-
-	if (verbose == 0)
-		return;
-
-	va_start(ap, fmt);
-	vfprintf(stderr, fmt, ap);
-	va_end(ap);
-}
-
-void
-log_request(struct url *url)
-{
-	int	custom_port = 0;
-
-	switch (url->scheme) {
-	case S_HTTP:
-		custom_port = strcmp(url->port, "80") ? 1 : 0;
-		break;
-	case S_HTTPS:
-		custom_port = strcmp(url->port, "443") ? 1 : 0;
-		break;
-	case S_FTP:
-		custom_port = strcmp(url->port, "21") ? 1 : 0;
-		break;
-	case S_FILE:
-		return;
-	}
-
-	if (proxy)
-		log_info("Requesting %s://%s%s%s%s\n"
-		    " (via %s://%s%s%s)",
-		    scheme_str[url->scheme],
-		    url->host,
-		    custom_port ? ":" : "",
-		    custom_port ? url->port : "",
-		    url->path ? url->path : "",
-
-		    /* via proxy part */
-		    (proxy->scheme == S_HTTP) ? "http" : "https",
-		    proxy->host,
-		    proxy->port[0] ? ":" : "",
-		    proxy->port[0] ? proxy->port : "");
-	else
-		log_info("Requesting %s://%s%s%s%s\n",
-		    scheme_str[url->scheme],
-		    url->host,
-		    custom_port ? ":" : "",
-		    custom_port ? url->port : "",
-		    url->path ? url->path : "");
 }
 
 __dead void

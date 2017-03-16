@@ -82,6 +82,7 @@ ssize_t	tls_readline(struct tls *, char *, size_t);
 ssize_t	tls_vwriteline(struct tls *, const char *, va_list);
 
 /* main.c */
+extern const char	*scheme_str[];
 extern char		 tmp_buf[TMPBUF_LEN];
 extern char		*tls_options;
 extern const char	*ua;
@@ -91,11 +92,7 @@ extern int		 http_debug;
 extern int		 progressmeter;
 extern int		 verbose;
 
-void	log_info(const char *, ...)
-	    __attribute__((__format__ (printf, 1, 2)))
-	    __attribute__((__nonnull__ (1)));
 void	url_parse(struct url *, const char *);
-void	log_request(struct url *);
 
 /* progressmeter.c */
 void	start_progress_meter(const char *, off_t, off_t *);
@@ -110,3 +107,7 @@ off_t	 stat_request(struct imsgbuf *, struct imsg *, const char *, int *);
 int	 fd_request(struct imsgbuf *, struct imsg *, const char *, int);
 int	 read_message(struct imsgbuf *, struct imsg *);
 void	 send_message(struct imsgbuf *, int, uint32_t, void *, size_t, int);
+void	 log_info(const char *, ...)
+	    __attribute__((__format__ (printf, 1, 2)))
+	    __attribute__((__nonnull__ (1)));
+void	 log_request(struct url *);
