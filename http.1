@@ -73,8 +73,7 @@ Continue a previously interrupted file transfer.
 .Nm
 will continue transferring from an offset equal to the length of file.
 .Pp
-Resuming HTTP(S) transfers are only supported
-if the remote server supports the
+Resuming HTTP(S) transfers are only supported if the remote server supports the
 .Dq Range
 header.
 .It Fl D Ar title
@@ -93,8 +92,7 @@ TLS options to use with HTTPS transfers.
 The following settings are available:
 .Bl -tag -width Ds
 .It Cm cafile Ns = Ns Ar /path/to/cert.pem
-PEM encoded file containing CA certificates used for certificate
-validation.
+PEM encoded file containing CA certificates used for certificate validation.
 .It Cm capath Ns = Ns Ar /path/to/certs/
 Directory containing PEM encoded CA certificates used for certificate
 validation.
@@ -106,8 +104,7 @@ See the
 .Cm ciphers
 subcommand.
 .It Cm depth Ns = Ns Ar max_depth
-Maximum depth of the certificate chain allowed when performing
-validation.
+Maximum depth of the certificate chain allowed when performing validation.
 .It Cm dont
 Don't perform server certificate validation.
 .It Cm protocols Ns = Ns Ar string
@@ -237,3 +234,10 @@ utilizes the following environment variables:
 .It Ev http_proxy
 URL of HTTP proxy to use when making HTTP(S) URL requests.
 .El
+.Sh HISTORY
+The
+.Nm
+command first appeard in
+.Ox ?.? .
+.Sh AUTHORS
+.An Sunil Nimmagadda Aq Mt sunil@openbsd.org
