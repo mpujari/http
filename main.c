@@ -80,7 +80,7 @@ main(int argc, char **argv)
 
 	save_argc = argc;
 	save_argv = argv;
-	while ((ch = getopt(argc, argv, "aCD:o:mMS:s:U:vVw:x")) != -1) {
+	while ((ch = getopt(argc, argv, "4aCD:o:mMS:s:U:vVw:x")) != -1) {
 		switch (ch) {
 		case 'C':
 			resume = 1;
@@ -112,6 +112,8 @@ main(int argc, char **argv)
 				errx(1, "-w: %s", e);
 			break;
 		/* options for compatibility, on by default */
+		case '4':
+			break;
 		case 'a':
 			break;
 		case 'v':
