@@ -298,7 +298,7 @@ log_info(const char *fmt, ...)
 	va_end(ap);
 }
 void
-log_request(struct url *url)
+log_request(struct url *url, const char *prefix)
 {
 	int	custom_port = 0;
 
@@ -317,8 +317,9 @@ log_request(struct url *url)
 	}
 
 	if (proxy)
-		log_info("Requesting %s://%s%s%s%s\n"
+		log_info("%s %s://%s%s%s%s\n"
 		    " (via %s://%s%s%s)",
+		    prefix,
 		    scheme_str[url->scheme],
 		    url->host,
 		    custom_port ? ":" : "",
@@ -331,7 +332,8 @@ log_request(struct url *url)
 		    proxy->port[0] ? ":" : "",
 		    proxy->port[0] ? proxy->port : "");
 	else
-		log_info("Requesting %s://%s%s%s%s\n",
+		log_info("%s %s://%s%s%s%s\n",
+		    prefix,
 		    scheme_str[url->scheme],
 		    url->host,
 		    custom_port ? ":" : "",

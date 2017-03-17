@@ -121,6 +121,7 @@ struct http_headers {
 };
 
 static void		 headers_parse(struct http_headers *, const char *);
+static void		 http_close(struct url *);
 static const char	*http_error(int);
 static int		 http_status_code(const char *);
 static int		 http_status_cmp(const void *, const void *);
@@ -308,7 +309,7 @@ http_get(struct url *url)
 	case 302:
 	case 303:
 	case 307:
-		log_info("Redirected to %s\n", headers.location);
+		http_close(url);
 		if (++redirects > MAX_REDIRECTS)
 			errx(1, "Too many redirections requested");
 
@@ -323,9 +324,9 @@ http_get(struct url *url)
 
 		free((void *)headers.location);
 		buffer_drain(-1);
-		url->port[0] = '\0';
+		log_request(url, "Redirected to");
 		http_connect(url, 0);
-		log_request(url);
+		log_request(url, "Requesting");
 		goto redirected;
 	case 416:
 		warnx("File is already fully retrieved");
@@ -373,12 +374,21 @@ http_save(struct url *url, int fd)
 	}
 
  	fclose(fp);
+	http_close(url);
+}
+
+static void
+http_close(struct url *url)
+{
+	ssize_t	r;
+
 	if (url->scheme == S_HTTPS) {
 		do {
 			r = tls_close(ctx);
 		} while (r == TLS_WANT_POLLIN || r == TLS_WANT_POLLOUT);
 		tls_free(ctx);
 	}
+
 	close(sock);
 }
 

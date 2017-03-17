@@ -321,7 +321,7 @@ url_connect(struct url *url, int timeout)
 static void
 url_request(struct url *url)
 {
-	log_request(url);
+	log_request(url, "Requesting");
 	switch (url->scheme) {
 	case S_HTTP:
 	case S_HTTPS:
