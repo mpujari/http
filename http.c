@@ -317,6 +317,7 @@ http_get(struct url *url)
 		if (headers.location[0] == '/')
 			url->path = xstrdup(headers.location, __func__);
 		else {
+			url->port[0] = '\0';
 			str = url_encode(headers.location);
 			url_parse(url, str);
 			free(str);
