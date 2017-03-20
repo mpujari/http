@@ -387,8 +387,8 @@ env_parse(void)
 	if (strlen(proxy_str) == 0)
 		return;
 
-	if ((proxy = malloc(sizeof *proxy)) == NULL)
-		err(1, "%s: malloc", __func__);
+	if ((proxy = calloc(1, sizeof *proxy)) == NULL)
+		err(1, "%s: calloc", __func__);
 
 	url_parse(proxy, proxy_str);
 	if (proxy->scheme != S_HTTP)
