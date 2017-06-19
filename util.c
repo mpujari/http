@@ -203,7 +203,18 @@ xstrdup(const char *str, const char *where)
 	char	*r;
 
 	if ((r = strdup(str)) == NULL)
-		errx(1, "%s: strdup", where);
+		err(1, "%s: strdup", where);
+
+	return r;
+}
+
+char *
+xstrndup(const char *str, size_t maxlen, const char *where)
+{
+	char	*r;
+
+	if ((r = strndup(str, maxlen)) == NULL)
+		err(1, "%s: strndup", where);
 
 	return r;
 }

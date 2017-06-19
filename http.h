@@ -103,6 +103,7 @@ char	*url_encode(const char *);
 int	 tcp_connect(const char *, const char *, int);
 void	 proxy_connect(struct url *, int);
 char	*xstrdup(const char *, const char *);
+char	*xstrndup(const char *, size_t, const char *);
 off_t	 stat_request(struct imsgbuf *, struct imsg *, const char *, int *);
 int	 fd_request(struct imsgbuf *, struct imsg *, const char *, int);
 int	 read_message(struct imsgbuf *, struct imsg *);
