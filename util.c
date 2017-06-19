@@ -340,8 +340,8 @@ log_request(struct url *url, const char *prefix)
 		    /* via proxy part */
 		    (proxy->scheme == S_HTTP) ? "http" : "https",
 		    proxy->host,
-		    proxy->port[0] ? ":" : "",
-		    proxy->port[0] ? proxy->port : "");
+		    proxy->port ? ":" : "",
+		    proxy->port ? proxy->port : "");
 	else
 		log_info("%s %s://%s%s%s%s\n",
 		    prefix,

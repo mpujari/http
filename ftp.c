@@ -54,8 +54,8 @@ ftp_connect(struct url *url, int timeout)
 	char	buf[MAX_LINE];
 	int	r = -1;
 
-	if (url->port[0] == '\0')
-		(void)strlcpy(url->port, "21", sizeof url->port);
+	if (url->port == NULL)
+		url->port = xstrdup("21", __func__);
 
 	ctrl_sock = tcp_connect(url->host, url->port, timeout);
 	if (proxy)

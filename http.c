@@ -225,9 +225,12 @@ https_init(void)
 void
 http_connect(struct url *url, int timeout)
 {
-	if (url->port[0] == '\0')
-		(void)strlcpy(url->port,
-		    url->scheme == S_HTTP ? "80" : "443", sizeof url->port);
+	if (url->port == NULL) {
+		if (url->scheme == S_HTTP)
+			url->port = xstrdup("80", __func__);
+		else
+			url->port = xstrdup("443", __func__);
+	}
 
 	sock = tcp_connect(url->host, url->port, timeout);
 	if (proxy)
@@ -295,10 +298,10 @@ http_get(struct url *url)
 	    url->host,
 	    ua,
 	    url->offset ? range : "",
-	    url->basic_auth[0] ? "Authorization: Basic " : "",
-	    url->basic_auth[0] ? url->basic_auth : "");
-
+	    url->basic_auth ? "Authorization: Basic " : "",
+	    url->basic_auth ? url->basic_auth : "");
 	free(range);
+
 	switch (code) {
 	case 200:
 		if (url->offset)
@@ -315,13 +318,12 @@ http_get(struct url *url)
 		if (++redirects > MAX_REDIRECTS)
 			errx(1, "Too many redirections requested");
 
-		free((void *)url->path);
+		free(url->path);
 		if (headers.location[0] == '/')
 			url->path = xstrdup(headers.location, __func__);
 		else {
-			url->port[0] = '\0';
 			str = url_encode(headers.location);
-			url_parse(url, str);
+			url = url_parse(str);
 			free(str);
 		}
 
@@ -467,7 +469,6 @@ static void
 headers_parse(struct http_headers *headers, const char *buf)
 {
 	const char	*errstr;
-	size_t		 sz;
 
 	if (strncasecmp(buf, "Content-Length: ", 16) == 0) {
 		if ((buf = strchr(buf, ' ')) == NULL)

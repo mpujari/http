@@ -66,7 +66,7 @@ static int		 resume;
 int
 main(int argc, char **argv)
 {
-	struct url	  url;
+	struct url	 *url;
 	const char	 *e;
 	char		**save_argv, *str, *term;
 	int		  ch, csock, dumb_terminal, rexec = 0, save_argc, sp[2];
@@ -150,15 +150,15 @@ main(int argc, char **argv)
 
 		str = url_encode(argv[0]);
 		memset(&url, 0, sizeof url);
-		url_parse(&url, str);
+		url = url_parse(str);
 		free(str);
-		url.fname = oarg;
-		url_connect(&url, connect_timeout);
-		url_request(&url);
+		url->fname = oarg;
+		url_connect(url, connect_timeout);
+		url_request(url);
 		if (pledge("stdio tty", NULL) == -1)
 			err(1, "pledge");
 
-		url_save(&url, STDOUT_FILENO);
+		url_save(url, STDOUT_FILENO);
 		return 0;
 	}
 
@@ -221,7 +221,7 @@ parent(int sock, pid_t child_pid, int argc, char **argv)
 	const char	*fn;
 	size_t		 datalen;
 	off_t		 offset;
-	int		 fd, flags, sig, status;
+	int		 fd, sig, status;
 
 	if (pledge("stdio cpath rpath wpath sendfd", NULL) == -1)
 		err(1, "pledge");
@@ -270,9 +270,8 @@ parent(int sock, pid_t child_pid, int argc, char **argv)
 static void
 child(int sock, int argc, char **argv)
 {
-	struct url	 url;
+	struct url	*url;
 	char		*str;
-	off_t		*poff;
 	int		 fd, flags, i;
 
 	https_init();
@@ -288,37 +287,37 @@ child(int sock, int argc, char **argv)
 	for (i = 0; i < argc; i++) {
 		str = url_encode(argv[i]);
 		memset(&url, 0, sizeof url);
-		url_parse(&url, str);
+		url = url_parse(str);
 		free(str);
-		if ((url.fname = oarg ? oarg : basename(url.path)) == NULL)
-			err(1, "basename(%s)", url.path);
+		if ((url->fname = oarg ? oarg : basename(url->path)) == NULL)
+			err(1, "basename(%s)", url->path);
 
-		if (strcmp(url.fname, "/") == 0)
+		if (strcmp(url->fname, "/") == 0)
 			errx(1, "No filename after host (use -o): %s", argv[i]);
 
-		if (strcmp(url.fname, ".") == 0)
+		if (strcmp(url->fname, ".") == 0)
 			errx(1, "No '/' after host (use -o): %s", argv[i]);
 
-		url_connect(&url, connect_timeout);
-		url.offset = 0;
+		url_connect(url, connect_timeout);
+		url->offset = 0;
 		if (resume)
-			if ((url.offset = stat_request(&child_ibuf, &child_imsg,
-			    url.fname, NULL)) == -1)
-				url.offset = 0;
+			if ((url->offset = stat_request(&child_ibuf,
+			    &child_imsg, url->fname, NULL)) == -1)
+				url->offset = 0;
 
-		url_request(&url);
+		url_request(url);
 		flags = O_CREAT | O_WRONLY;
-		if (url.offset)
+		if (url->offset)
 			flags |= O_APPEND;
 
-		if (strcmp(url.fname, "-") == 0)
+		if (strcmp(url->fname, "-") == 0)
 			fd = dup(STDOUT_FILENO);
 		else if ((fd = fd_request(&child_ibuf, &child_imsg,
-		    url.fname, flags)) == -1)
+		    url->fname, flags)) == -1)
 			break;
 
-		url_save(&url, fd);
-		free((void *)url.path);
+		url_save(url, fd);
+		url_free(url);
 		imsg_free(&child_imsg);
 	}
 
@@ -399,21 +398,22 @@ env_parse(void)
 	if (strlen(proxy_str) == 0)
 		return;
 
-	if ((proxy = calloc(1, sizeof *proxy)) == NULL)
-		err(1, "%s: calloc", __func__);
-
-	url_parse(proxy, proxy_str);
+	proxy = url_parse(proxy_str);
 	if (proxy->scheme != S_HTTP)
 		errx(1, "Invalid proxy scheme: %s", proxy_str);
 
-	if (proxy->port[0] == '\0')
-		(void)strlcpy(proxy->port, "80", sizeof proxy->port);
+	if (proxy->port == NULL)
+		proxy->port = xstrdup("80", __func__);
 }
 
-void
-url_parse(struct url *url, const char *url_str)
+struct url *
+url_parse(const char *url_str)
 {
-	char	*t;
+	struct url	*url;
+	char		*basic_auth = NULL, *host, *port = NULL;
+	char		*path = NULL, *t;
+	size_t		 auth_len, basic_auth_len;
+	int		 scheme = S_HTTP;
 
 	while (isblank((unsigned char)*url_str))
 		url_str++;
@@ -421,24 +421,28 @@ url_parse(struct url *url, const char *url_str)
 	/* Determine the scheme */
 	if ((t = strstr(url_str, "://")) != NULL) {
 		if (strncasecmp(url_str, "http://", 7) == 0)
-			url->scheme = S_HTTP;
+			scheme = S_HTTP;
 		else if (strncasecmp(url_str, "https://", 8) == 0)
-			url->scheme = S_HTTPS;
+			scheme = S_HTTPS;
 		else if (strncasecmp(url_str, "ftp://", 6) == 0)
-			url->scheme = S_FTP;
+			scheme = S_FTP;
 		else if (strncasecmp(url_str, "file://", 7) == 0)
-			url->scheme = S_FILE;
+			scheme = S_FILE;
 		else
 			errx(1, "%s: Invalid scheme %s", __func__, url_str);
 
 		url_str = t + strlen("://");
-	} else
-		url->scheme = S_HTTP;	/* default to HTTP */
+	}
 
 	/* Prepare Basic Auth of credentials if present */
 	if ((t = strchr(url_str, '@')) != NULL) {
-		if (b64_ntop((unsigned char *)url_str, t - url_str,
-		    url->basic_auth, sizeof url->basic_auth) == -1)
+		auth_len = t - url_str;
+		basic_auth_len = (auth_len + 2) / 3 * 4 + 1;
+		if ((basic_auth = calloc(1, basic_auth_len)) == NULL)
+			err(1, "calloc");
+
+		if (b64_ntop((unsigned char *)url_str, auth_len,
+		    basic_auth, basic_auth_len) == -1)
 			errx(1, "error in base64 encoding");
 
 		url_str = ++t;
@@ -446,29 +450,46 @@ url_parse(struct url *url, const char *url_str)
 
 	/* Extract path component */
 	if ((t = strchr(url_str, '/')) != NULL) {
-		url->path = xstrdup(t, __func__);
+		path = xstrdup(t, __func__);
 		*t = '\0';
 	}
 
-	if (url->scheme == S_FILE)
+	if (scheme == S_FILE)
 		goto end;
 
 	/* hostname and port */
 	if ((t = strchr(url_str, ':')) != NULL)	{
 		*t++ = '\0';
-		if (strlcpy(url->port, t, sizeof url->port) >= sizeof url->port)
-			errx(1, "%s: port too long", __func__);
+		port = xstrndup(t, NI_MAXSERV, __func__);
 	}
 
-	if (strlcpy(url->host, url_str, sizeof url->host) >= sizeof url->host)
-		errx(1, "%s: hostname too long", __func__);
-
+	host = xstrndup(url_str, MAXHOSTNAMELEN+1, __func__);
  end:
 	if (http_debug) {
 		fprintf(stderr,
 		    "scheme: %s\nhost: %s\nport: %s\npath: %s\n",
-		    scheme_str[url->scheme], url->host, url->port, url->path);
+		    scheme_str[scheme], host, port, path);
 	}
+
+	if ((url = malloc(sizeof *url)) == NULL)
+		err(1, "malloc");
+
+	url->scheme = scheme;
+	url->host = host;
+	url->port = port;
+	url->basic_auth = basic_auth;
+	url->path = path;
+	return url;
+}
+
+void
+url_free(struct url *url)
+{
+	free(url->host);
+	free(url->port);
+	free(url->basic_auth);
+	free(url->path);
+	free(url);
 }
 
 __dead void

@@ -39,14 +39,15 @@ struct imsg;
 struct imsgbuf;
 
 struct url {
-	char		 host[MAXHOSTNAMELEN+1];
-	char		 port[NI_MAXSERV];
-	char		 basic_auth[BUFSIZ];
-	const char	*fname;
-	const char	*path;
-	off_t		 file_sz;
-	off_t		 offset;
-	int		 scheme;
+	int	 scheme;
+	char	*host;
+	char	*port;
+	char	*basic_auth;
+	char	*path;
+
+	char	*fname;
+	off_t	 file_sz;
+	off_t	 offset;
 };
 
 struct open_req {
@@ -92,7 +93,8 @@ extern int		 http_debug;
 extern int		 progressmeter;
 extern int		 verbose;
 
-void	url_parse(struct url *, const char *);
+struct url	*url_parse(const char *);
+void		 url_free(struct url *);
 
 /* progressmeter.c */
 void	start_progress_meter(const char *, off_t, off_t *);
