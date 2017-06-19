@@ -180,19 +180,20 @@ main(int argc, char **argv)
 static void
 re_exec(int sock, int argc, char **argv)
 {
-	char	**nargv, sock_buf[8];
+	char	**nargv, *sock_str;
 	int	  i, j, nargc;
 
 	nargc = argc + 4;
 	if ((nargv = calloc(nargc, sizeof(*nargv))) == NULL)
 		err(1, "calloc");
 
-	(void)snprintf(sock_buf, sizeof sock_buf, "%d", sock);
+	if (asprintf(&sock_str, "%d", sock) == -1)
+		err(1, "asprintf");
 
 	i = 0;
 	nargv[i++] = argv[0];
 	nargv[i++] = "-s";
-	nargv[i++] = sock_buf;
+	nargv[i++] = sock_str;
 	nargv[i++] = "-x";
 	for (j = 1; j < argc; j++)
 		nargv[i++] = argv[j];
