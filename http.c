@@ -279,7 +279,7 @@ void
 http_get(struct url *url)
 {
 	static struct http_headers	 headers;
-	char				*range, *str;
+	char				*range;
 	int				 code, redirects = 0;
 
  redirected:
@@ -322,9 +322,7 @@ http_get(struct url *url)
 		if (headers.location[0] == '/')
 			url->path = xstrdup(headers.location, __func__);
 		else {
-			str = url_encode(headers.location);
-			url = url_parse(str);
-			free(str);
+			url = url_parse(headers.location);
 		}
 
 		free((void *)headers.location);

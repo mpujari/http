@@ -68,7 +68,7 @@ main(int argc, char **argv)
 {
 	struct url	 *url;
 	const char	 *e;
-	char		**save_argv, *str, *term;
+	char		**save_argv, *term;
 	int		  ch, csock, dumb_terminal, rexec = 0, save_argc, sp[2];
 	pid_t		  pid;
 
@@ -148,10 +148,7 @@ main(int argc, char **argv)
 		if (pledge("stdio inet dns tty", NULL) == -1)
 			err(1, "pledge");
 
-		str = url_encode(argv[0]);
-		memset(&url, 0, sizeof url);
-		url = url_parse(str);
-		free(str);
+		url = url_parse(argv[0]);
 		url->fname = oarg;
 		url_connect(url, connect_timeout);
 		url_request(url);
@@ -271,7 +268,6 @@ static void
 child(int sock, int argc, char **argv)
 {
 	struct url	*url;
-	char		*str;
 	int		 fd, flags, i;
 
 	https_init();
@@ -285,10 +281,7 @@ child(int sock, int argc, char **argv)
 
 	imsg_init(&child_ibuf, sock);
 	for (i = 0; i < argc; i++) {
-		str = url_encode(argv[i]);
-		memset(&url, 0, sizeof url);
-		url = url_parse(str);
-		free(str);
+		url = url_parse(argv[i]);
 		if ((url->fname = oarg ? oarg : basename(url->path)) == NULL)
 			err(1, "basename(%s)", url->path);
 
@@ -407,16 +400,18 @@ env_parse(void)
 }
 
 struct url *
-url_parse(const char *url_str)
+url_parse(const char *str)
 {
 	struct url	*url;
-	char		*basic_auth = NULL, *host, *port = NULL;
-	char		*path = NULL, *t;
+	char		*basic_auth = NULL, *host, *port = NULL, *path = NULL;
+	char		*url_str, *t;
 	size_t		 auth_len, basic_auth_len;
 	int		 scheme = S_HTTP;
 
-	while (isblank((unsigned char)*url_str))
-		url_str++;
+	while (isblank((unsigned char)*str))
+		str++;
+
+	url_str = url_encode(str);
 
 	/* Determine the scheme */
 	if ((t = strstr(url_str, "://")) != NULL) {
@@ -465,6 +460,7 @@ url_parse(const char *url_str)
 
 	host = xstrndup(url_str, MAXHOSTNAMELEN+1, __func__);
  end:
+	free(url_str);
 	if (http_debug) {
 		fprintf(stderr,
 		    "scheme: %s\nhost: %s\nport: %s\npath: %s\n",
