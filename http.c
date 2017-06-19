@@ -275,14 +275,15 @@ proxy_connect(struct url *url, int fd)
 void
 http_get(struct url *url)
 {
-	static struct http_headers	headers;
-	char				range[BUFSIZ], *str;
-	int				code, redirects = 0;
+	static struct http_headers	 headers;
+	char				*range, *str;
+	int				 code, redirects = 0;
 
  redirected:
 	memset(&headers, 0, sizeof headers);
-	(void)snprintf(range, sizeof range,
-	    "Range: bytes=%lld-\r\n", url->offset);
+	if (asprintf(&range, "Range: bytes=%lld-\r\n", url->offset) == -1)
+		err(1, "asprintf");
+
 	code = http_request(url->scheme, &headers,
 	    "GET %s HTTP/1.0\r\n"
 	    "Host: %s\r\n"
@@ -297,6 +298,7 @@ http_get(struct url *url)
 	    url->basic_auth[0] ? "Authorization: Basic " : "",
 	    url->basic_auth[0] ? url->basic_auth : "");
 
+	free(range);
 	switch (code) {
 	case 200:
 		if (url->offset)
