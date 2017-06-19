@@ -450,17 +450,16 @@ url_parse(const char *str)
 		*t = '\0';
 	}
 
-	if (scheme == S_FILE)
-		goto end;
-
 	/* hostname and port */
-	if ((t = strchr(url_str, ':')) != NULL)	{
-		*t++ = '\0';
-		port = xstrndup(t, NI_MAXSERV, __func__);
+	if (scheme != S_FILE) {
+		if ((t = strchr(url_str, ':')) != NULL)	{
+			*t++ = '\0';
+			port = xstrndup(t, NI_MAXSERV, __func__);
+		}
+
+		host = xstrndup(url_str, MAXHOSTNAMELEN+1, __func__);
 	}
 
-	host = xstrndup(url_str, MAXHOSTNAMELEN+1, __func__);
- end:
 	free(url_str);
 	if (http_debug) {
 		fprintf(stderr,
