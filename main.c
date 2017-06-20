@@ -151,7 +151,7 @@ main(int argc, char **argv)
 			err(1, "pledge");
 
 		url = url_parse(argv[0]);
-		url->fname = oarg;
+		url->fname = xstrdup(oarg, __func__);
 		url_connect(url, connect_timeout);
 		url = url_request(url);
 		if (pledge("stdio tty", NULL) == -1)
@@ -285,9 +285,8 @@ child(int sock, int argc, char **argv)
 	imsg_init(&child_ibuf, sock);
 	for (i = 0; i < argc; i++) {
 		url = url_parse(argv[i]);
-		if ((url->fname = oarg ? oarg : basename(url->path)) == NULL)
-			err(1, "basename(%s)", url->path);
-
+		url->fname = xstrdup(oarg ?
+		    oarg : basename(url->path), __func__);
 		if (strcmp(url->fname, "/") == 0)
 			errx(1, "No filename after host (use -o): %s", argv[i]);
 
@@ -484,6 +483,7 @@ url_free(struct url *url)
 	free(url->port);
 	free(url->basic_auth);
 	free(url->path);
+	free(url->fname);
 	free(url);
 }
 

@@ -349,6 +349,7 @@ http_redirect(struct url *old_url, const char *url_str)
 	} else
 		new_url = url_parse(url_str);
 
+	new_url->fname = xstrdup(old_url->fname, __func__);
 	url_free(old_url);
 	return new_url;
 }
