@@ -75,7 +75,7 @@ error:
 	close(ctrl_sock);
 }
 
-void
+struct url *
 ftp_get(struct url *url)
 {
 	char	*dir;
@@ -101,6 +101,7 @@ ftp_get(struct url *url)
 	if (ftp_command(ctrl_sock, "RETR %s", url->fname) != P_PRE)
 		errx(1, "error retrieving file %s", url->fname);
 
+	return url;
 }
 
 void

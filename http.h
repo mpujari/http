@@ -54,21 +54,21 @@ struct open_req {
 };
 
 /* file.c */
-void	file_connect(struct imsgbuf *, struct imsg *, struct url *);
-void	file_request(struct imsgbuf *, struct imsg *, struct url *);
-void	file_save(struct url *, int);
+void		 file_connect(struct imsgbuf *, struct imsg *, struct url *);
+struct url	*file_request(struct imsgbuf *, struct imsg *, struct url *);
+void		 file_save(struct url *, int);
 
 /* ftp.c */
-void	ftp_connect(struct url *, int);
-void	ftp_get(struct url *);
-void	ftp_quit(struct url *);
-void	ftp_save(struct url *, int);
+void		 ftp_connect(struct url *, int);
+struct url	*ftp_get(struct url *);
+void		 ftp_quit(struct url *);
+void		 ftp_save(struct url *, int);
 
 /* http.c */
-void	http_connect(struct url *, int);
-void	http_get(struct url *);
-void	http_save(struct url *, int);
-void	https_init(void);
+void		 http_connect(struct url *, int);
+struct url	*http_get(struct url *);
+void		 http_save(struct url *, int);
+void		 https_init(void);
 
 /* io.c */
 ssize_t	buffer_drain(int);

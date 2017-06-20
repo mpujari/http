@@ -39,14 +39,14 @@
 
 #include "http.h"
 
-static void	child(int, int, char **);
-static void	env_parse(void);
-static int	parent(int, pid_t, int, char **);
-static void	re_exec(int, int, char **);
-static void	url_connect(struct url *, int);
-static void	url_request(struct url *);
-static void	url_save(struct url *, int);
-__dead void	usage(void);
+static void		 child(int, int, char **);
+static void		 env_parse(void);
+static int		 parent(int, pid_t, int, char **);
+static void		 re_exec(int, int, char **);
+static void		 url_connect(struct url *, int);
+static struct url	*url_request(struct url *);
+static void		 url_save(struct url *, int);
+__dead void		 usage(void);
 
 const char	*scheme_str[] = { "http", "https", "ftp", "file" };
 const char	*port_str[] = { "80", "443", "21", "" };
@@ -153,7 +153,7 @@ main(int argc, char **argv)
 		url = url_parse(argv[0]);
 		url->fname = oarg;
 		url_connect(url, connect_timeout);
-		url_request(url);
+		url = url_request(url);
 		if (pledge("stdio tty", NULL) == -1)
 			err(1, "pledge");
 
@@ -301,7 +301,7 @@ child(int sock, int argc, char **argv)
 			    &child_imsg, url->fname, NULL)) == -1)
 				url->offset = 0;
 
-		url_request(url);
+		url = url_request(url);
 		flags = O_CREAT | O_WRONLY;
 		if (url->offset)
 			flags |= O_APPEND;
@@ -337,22 +337,21 @@ url_connect(struct url *url, int timeout)
 	}
 }
 
-static void
+static struct url *
 url_request(struct url *url)
 {
 	log_request("Requesting", url);
 	switch (url->scheme) {
 	case S_HTTP:
 	case S_HTTPS:
-		http_get(url);
-		break;
+		return http_get(url);
 	case S_FTP:
-		ftp_get(url);
-		break;
+		return ftp_get(url);
 	case S_FILE:
-		file_request(&child_ibuf, &child_imsg, url);
-		break;
+		return file_request(&child_ibuf, &child_imsg, url);
 	}
+
+	return NULL;
 }
 
 static void

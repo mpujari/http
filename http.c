@@ -124,6 +124,7 @@ static void		 headers_parse(struct http_headers **, const char *);
 static void		 headers_free(struct http_headers *);
 static void		 http_close(struct url *);
 static const char	*http_error(int);
+static struct url	*http_redirect(struct url *, const char *);
 static int		 http_status_code(const char *);
 static int		 http_status_cmp(const void *, const void *);
 static int		 http_request(int, struct http_headers **,
@@ -269,7 +270,7 @@ proxy_connect(struct url *url, int fd)
 		    url->host, url->port);
 }
 
-void
+struct url *
 http_get(struct url *url)
 {
 	struct http_headers	*headers;
@@ -333,6 +334,7 @@ http_get(struct url *url)
 
 	url->file_sz = headers->content_length + url->offset;
 	headers_free(headers);
+	return url;
 }
 
 void

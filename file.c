@@ -40,7 +40,7 @@ file_connect(struct imsgbuf *ibuf, struct imsg *imsg, struct url *url)
 		err(1, "%s: fdopen", __func__);
 }
 
-void
+struct url *
 file_request(struct imsgbuf *ibuf, struct imsg *imsg, struct url *url)
 {
 	int	save_errno;
@@ -50,6 +50,8 @@ file_request(struct imsgbuf *ibuf, struct imsg *imsg, struct url *url)
 		errno = save_errno;
 		err(1, "Can't open file %s", url->path);
 	}
+
+	return url;
 }
 
 void
