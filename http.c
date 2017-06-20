@@ -225,13 +225,6 @@ https_init(void)
 void
 http_connect(struct url *url, int timeout)
 {
-	if (url->port == NULL) {
-		if (url->scheme == S_HTTP)
-			url->port = xstrdup("80", __func__);
-		else
-			url->port = xstrdup("443", __func__);
-	}
-
 	sock = tcp_connect(url->host, url->port, timeout);
 	if (proxy)
 		proxy_connect(url, sock);

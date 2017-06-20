@@ -49,6 +49,7 @@ static void	url_save(struct url *, int);
 __dead void	usage(void);
 
 const char	*scheme_str[] = { "http", "https", "ftp", "file" };
+const char	*port_str[] = { "80", "443", "21", "" };
 char		 tmp_buf[TMPBUF_LEN];
 const char	*ua = "OpenBSD http";
 const char	*title;
@@ -456,7 +457,8 @@ url_parse(const char *str)
 		if ((t = strchr(url_str, ':')) != NULL)	{
 			*t++ = '\0';
 			port = xstrndup(t, NI_MAXSERV, __func__);
-		}
+		} else
+			port = xstrdup(port_str[scheme], __func__);
 
 		host = xstrndup(url_str, MAXHOSTNAMELEN+1, __func__);
 	}
