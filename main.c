@@ -468,7 +468,7 @@ url_parse(const char *str)
 		    scheme_str[scheme], host, port, path);
 	}
 
-	if ((url = malloc(sizeof *url)) == NULL)
+	if ((url = calloc(1, sizeof *url)) == NULL)
 		err(1, "malloc");
 
 	url->scheme = scheme;
