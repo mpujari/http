@@ -264,8 +264,8 @@ proxy_connect(struct url *url, int fd)
 	    url->port,
 	    url->host,
 	    ua,
-	    url->basic_auth[0] ? "Proxy-Authorization: Basic " : "",
-	    url->basic_auth[0] ? url->basic_auth : "");
+	    url->basic_auth ? "Proxy-Authorization: Basic " : "",
+	    url->basic_auth ? url->basic_auth : "");
 
 	if (readline(fd, buf, sizeof buf) <= 0)
 		errx(1, "%s: Failed to get proxy response", __func__);
