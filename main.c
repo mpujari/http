@@ -406,14 +406,14 @@ url_parse(const char *str)
 {
 	struct url	*url;
 	char		*basic_auth = NULL, *host, *port = NULL, *path = NULL;
-	char		*url_str, *t;
+	char		*url_str, *url_strp, *t;
 	size_t		 auth_len, basic_auth_len;
 	int		 scheme = S_HTTP;
 
 	while (isblank((unsigned char)*str))
 		str++;
 
-	url_str = url_encode(str);
+	url_str = url_strp = url_encode(str);
 
 	/* Determine the scheme */
 	if ((t = strstr(url_str, "://")) != NULL) {
@@ -461,7 +461,7 @@ url_parse(const char *str)
 		host = xstrndup(url_str, MAXHOSTNAMELEN+1, __func__);
 	}
 
-	free(url_str);
+	free(url_strp);
 	if (http_debug) {
 		fprintf(stderr,
 		    "scheme: %s\nhost: %s\nport: %s\npath: %s\n",
