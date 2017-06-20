@@ -14,10 +14,8 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <sys/param.h>
 #include <sys/types.h>
 
-#include <netdb.h>
 #include <stdarg.h>
 #include <stdio.h>
 
