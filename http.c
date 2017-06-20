@@ -319,9 +319,9 @@ http_get(struct url *url)
 		}
 
 		buffer_drain(-1);
-		log_request(url, "Redirected to");
+		log_request("Redirected to", url);
 		http_connect(url, 0);
-		log_request(url, "Requesting");
+		log_request("Requesting", url);
 		headers_free(headers);
 		goto redirected;
 	case 416:

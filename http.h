@@ -111,4 +111,4 @@ void	 send_message(struct imsgbuf *, int, uint32_t, void *, size_t, int);
 void	 log_info(const char *, ...)
 	    __attribute__((__format__ (printf, 1, 2)))
 	    __attribute__((__nonnull__ (1)));
-void	 log_request(struct url *, const char *);
+void	 log_request(const char *, struct url *);

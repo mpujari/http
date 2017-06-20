@@ -309,7 +309,7 @@ log_info(const char *fmt, ...)
 	va_end(ap);
 }
 void
-log_request(struct url *url, const char *prefix)
+log_request(const char *prefix, struct url *url)
 {
 	int	custom_port = 0;
 
