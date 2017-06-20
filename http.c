@@ -312,18 +312,12 @@ http_get(struct url *url)
 		if (++redirects > MAX_REDIRECTS)
 			errx(1, "Too many redirections requested");
 
-		free(url->path);
-		if (headers->location[0] == '/')
-			url->path = xstrdup(headers->location, __func__);
-		else {
-			url = url_parse(headers->location);
-		}
-
+		url = http_redirect(url, headers->location);
+		headers_free(headers);
 		buffer_drain(-1);
 		log_request("Redirected to", url);
 		http_connect(url, 0);
 		log_request("Requesting", url);
-		headers_free(headers);
 		goto redirected;
 	case 416:
 		warnx("File is already fully retrieved");
@@ -335,6 +329,28 @@ http_get(struct url *url)
 	url->file_sz = headers->content_length + url->offset;
 	headers_free(headers);
 	return url;
+}
+
+struct url *
+http_redirect(struct url *old_url, const char *url_str)
+{
+	struct url	*new_url;
+
+	/* TODO: RFC 3986 #5.2 */
+	if (url_str[0]== '/') {
+		if ((new_url = calloc(1, sizeof *new_url)) == NULL)
+			err(1, "calloc");
+
+		new_url->scheme = old_url->scheme;
+		new_url->host = xstrdup(old_url->host, __func__);
+		new_url->port = xstrdup(old_url->port, __func__);
+		new_url->basic_auth = xstrdup(old_url->basic_auth, __func__);
+		new_url->path = xstrdup(url_str, __func__);
+	} else
+		new_url = url_parse(url_str);
+
+	url_free(old_url);
+	return new_url;
 }
 
 void
