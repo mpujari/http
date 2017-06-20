@@ -116,16 +116,17 @@ struct http_status {
 	};
 
 struct http_headers {
-	const char	*location;
-	off_t		 content_length;
+	char	*location;
+	off_t	 content_length;
 };
 
-static void		 headers_parse(struct http_headers *, const char *);
+static void		 headers_parse(struct http_headers **, const char *);
+static void		 headers_free(struct http_headers *);
 static void		 http_close(struct url *);
 static const char	*http_error(int);
 static int		 http_status_code(const char *);
 static int		 http_status_cmp(const void *, const void *);
-static int		 http_request(int, struct http_headers *,
+static int		 http_request(int, struct http_headers **,
 			    const char *, ...)
 			    __attribute__((__format__ (printf, 3, 4)))
 			    __attribute__((__nonnull__ (3)));
@@ -271,12 +272,11 @@ proxy_connect(struct url *url, int fd)
 void
 http_get(struct url *url)
 {
-	static struct http_headers	 headers;
-	char				*range;
-	int				 code, redirects = 0;
+	struct http_headers	*headers;
+	char			*range;
+	int			 code, redirects = 0;
 
  redirected:
-	memset(&headers, 0, sizeof headers);
 	if (asprintf(&range, "Range: bytes=%lld-\r\n", url->offset) == -1)
 		err(1, "asprintf");
 
@@ -312,17 +312,17 @@ http_get(struct url *url)
 			errx(1, "Too many redirections requested");
 
 		free(url->path);
-		if (headers.location[0] == '/')
-			url->path = xstrdup(headers.location, __func__);
+		if (headers->location[0] == '/')
+			url->path = xstrdup(headers->location, __func__);
 		else {
-			url = url_parse(headers.location);
+			url = url_parse(headers->location);
 		}
 
-		free((void *)headers.location);
 		buffer_drain(-1);
 		log_request(url, "Redirected to");
 		http_connect(url, 0);
 		log_request(url, "Requesting");
+		headers_free(headers);
 		goto redirected;
 	case 416:
 		warnx("File is already fully retrieved");
@@ -331,8 +331,8 @@ http_get(struct url *url)
 		errx(1, "Error retrieving file: %d %s", code, http_error(code));
 	}
 
-	url->file_sz = headers.content_length + url->offset;
-	free((void *)headers.location);
+	url->file_sz = headers->content_length + url->offset;
+	headers_free(headers);
 }
 
 void
@@ -389,7 +389,7 @@ http_close(struct url *url)
 }
 
 static int
-http_request(int scheme, struct http_headers *headers, const char *fmt, ...)
+http_request(int scheme, struct http_headers **headers, const char *fmt, ...)
 {
 	char	buf[MAX_LINE];
 	va_list	ap;
@@ -429,8 +429,7 @@ http_request(int scheme, struct http_headers *headers, const char *fmt, ...)
 		if (r == 0)
 			break;
 
-		if (headers)
-			headers_parse(headers, buf);
+		headers_parse(headers, buf);
 	}
 
 	return code;
@@ -457,27 +456,42 @@ http_status_code(const char *status_line)
 
 /* XXX key, value tree */
 static void
-headers_parse(struct http_headers *headers, const char *buf)
+headers_parse(struct http_headers **headers, const char *buf)
 {
 	const char	*errstr;
+	char		*location = NULL;
+	off_t		 content_length = 0;
 
 	if (strncasecmp(buf, "Content-Length: ", 16) == 0) {
 		if ((buf = strchr(buf, ' ')) == NULL)
 			errx(1, "Failed to parse Content-Length header");
 
 		buf++;
-		headers->content_length = strtonum(buf, 0, INT64_MAX, &errstr);
+		content_length = strtonum(buf, 0, INT64_MAX, &errstr);
 		if (errstr)
 			err(1, "%s: Content Length is %s: %lld", __func__,
-			    errstr, headers->content_length);
+			    errstr, content_length);
 	}
 
 	if (strncasecmp(buf, "Location: ", 10) == 0) {
 		if ((buf = strchr(buf, ' ')) == NULL)
 			errx(1, "Failed to parse Location header");
 
-		headers->location = xstrdup(++buf, __func__);
+		location = xstrdup(++buf, __func__);
 	}
+
+	if ((*headers = malloc(sizeof **headers)) == NULL)
+		err(1, "malloc");
+
+	(*headers)->content_length = content_length;
+	(*headers)->location = location;
+}
+
+static void
+headers_free(struct http_headers *headers)
+{
+	free(headers->location);
+	free(headers);
 }
 
 static const char *
