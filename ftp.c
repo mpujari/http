@@ -40,7 +40,7 @@
 static int	ftp_auth(const char *, const char *);
 static int	ftp_pasv(int);
 static int	ftp_size(int, const char *, off_t *);
-static ssize_t	ftp_readline(int, char *, size_t);
+static int	ftp_readline(int, char *, size_t);
 static int	ftp_command(int, const char *, ...)
 		    __attribute__((__format__ (printf, 2, 3)))
 		    __attribute__((__nonnull__ (2)));
@@ -139,7 +139,7 @@ ftp_quit(struct url *url)
 
 }
 
-static ssize_t
+static int
 ftp_readline(int fd, char *buf, size_t len)
 {
 	ssize_t		 r;
