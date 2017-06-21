@@ -82,6 +82,7 @@ ssize_t	tls_vwriteline(struct tls *, const char *, va_list);
 
 /* main.c */
 extern const char	*scheme_str[];
+extern const char	*port_str[];
 extern char		 tmp_buf[TMPBUF_LEN];
 extern char		*tls_options;
 extern const char	*ua;

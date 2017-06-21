@@ -311,22 +311,9 @@ log_info(const char *fmt, ...)
 void
 log_request(const char *prefix, struct url *url)
 {
-	int	custom_port = 0;
+	int	custom_port;
 
-	switch (url->scheme) {
-	case S_HTTP:
-		custom_port = strcmp(url->port, "80") ? 1 : 0;
-		break;
-	case S_HTTPS:
-		custom_port = strcmp(url->port, "443") ? 1 : 0;
-		break;
-	case S_FTP:
-		custom_port = strcmp(url->port, "21") ? 1 : 0;
-		break;
-	case S_FILE:
-		return;
-	}
-
+	custom_port = strcmp(url->port, port_str[url->scheme]) ? 1 : 0;
 	if (proxy)
 		log_info("%s %s://%s%s%s%s\n"
 		    " (via %s://%s%s%s)",
