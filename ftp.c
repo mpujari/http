@@ -288,9 +288,8 @@ ftp_size(int fd, const char *fn, off_t *sizep)
 static int
 ftp_auth(const char *user, const char *pass)
 {
-	int	code, ret;
-	char	hn[MAXHOSTNAMELEN+1], *un;
-	char	addr[LOGIN_NAME_MAX+MAXHOSTNAMELEN+3];
+	char	*addr = NULL, hn[MAXHOSTNAMELEN+1], *un;
+	int	 code, ret;
 
 	code = ftp_command(ctrl_sock, "USER %s", user ? user : "anonymous");
 	if (code != P_OK && code != P_INTER)
@@ -301,12 +300,11 @@ ftp_auth(const char *user, const char *pass)
 			err(1, "ftp_auth: gethostname");
 
 		un = getlogin();
-		ret = snprintf(addr, sizeof addr, "%s@%s",
-		    un ? un : "anonymous", hn);
-		if (ret == -1 || ret > sizeof addr)
-			errx(1, "addr too long");
+		if (asprintf(&addr, "%s@%s", un ? un : "anonymous") == -1)
+			err(1, "%s: asprintf", __func__);
 	}
 
 	code = ftp_command(ctrl_sock, "PASS %s", pass ? pass : addr);
+	free(addr);
 	return code;
 }
