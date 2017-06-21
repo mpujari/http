@@ -479,6 +479,9 @@ url_parse(const char *str)
 void
 url_free(struct url *url)
 {
+	if (url == NULL)
+		return;
+
 	free(url->host);
 	free(url->port);
 	free(url->basic_auth);

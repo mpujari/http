@@ -512,6 +512,9 @@ headers_parse(struct http_headers **headers, const char *buf)
 static void
 headers_free(struct http_headers *headers)
 {
+	if (headers == NULL)
+		return;
+
 	free(headers->location);
 	free(headers);
 }
