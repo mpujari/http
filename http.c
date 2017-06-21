@@ -346,8 +346,11 @@ http_redirect(struct url *old_url, const char *url_str)
 		new_url->port = xstrdup(old_url->port, __func__);
 		new_url->basic_auth = xstrdup(old_url->basic_auth, __func__);
 		new_url->path = xstrdup(url_str, __func__);
-	} else
+	} else {
 		new_url = url_parse(url_str);
+		if (old_url->scheme == S_HTTPS && new_url->scheme != S_HTTPS)
+			errx(1, "HTTPS to HTTP redirects not permitted");
+	}
 
 	new_url->fname = xstrdup(old_url->fname, __func__);
 	url_free(old_url);
