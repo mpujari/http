@@ -460,20 +460,15 @@ http_request(int scheme, struct http_headers **headers, const char *fmt, ...)
 static int
 http_status_code(const char *status_line)
 {
-	const char	*errstr;
-	char		 code[4], *p;
-	int		 res;
+	unsigned int	code;
 
-	if ((p = strchr(status_line, ' ')) == NULL)
-		errx(1, "%s: Malformed response: %s", __func__, status_line);
+	if (sscanf(status_line, "%*s %u %*s", &code) != 1)
+		errx(1, "%s: failed to extract status code", __func__);
 
-	p++;
-	(void)strlcpy(code, p, sizeof code);
-	res = strtonum(code, 200, 511, &errstr);
-	if (errstr)
-		errx(1, "%s: Response code is %s: %d", __func__, errstr, res);
+	if (code < 100 || code > 511)
+		errx(1, "%s: invalid status code %d", __func__, code);
 
-	return res;
+	return code;
 }
 
 /* XXX key, value tree */
