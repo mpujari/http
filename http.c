@@ -120,7 +120,7 @@ struct http_headers {
 	off_t	 content_length;
 };
 
-static void		 headers_parse(struct http_headers **, const char *);
+static void		 headers_parse(struct http_headers *, const char *);
 static void		 headers_free(struct http_headers *);
 static void		 http_close(struct url *);
 static const char	*http_error(int);
@@ -440,6 +440,9 @@ http_request(int scheme, struct http_headers **headers, const char *fmt, ...)
 	if ((code = http_status_code(buf)) == -1)
 		errx(1, "%s: Failed to extract status code", __func__);
 
+	if ((*headers = calloc(1, sizeof **headers)) == NULL)
+		err(1, "%s: calloc", __func__);
+
 	while (1) {
 		if (scheme == S_HTTP)
 			r = readline(sock, buf, sizeof buf);
@@ -452,7 +455,7 @@ http_request(int scheme, struct http_headers **headers, const char *fmt, ...)
 		if (r == 0)
 			break;
 
-		headers_parse(headers, buf);
+		headers_parse(*headers, buf);
 	}
 
 	return code;
@@ -472,37 +475,28 @@ http_status_code(const char *status_line)
 	return code;
 }
 
-/* XXX key, value tree */
 static void
-headers_parse(struct http_headers **headers, const char *buf)
+headers_parse(struct http_headers *headers, const char *buf)
 {
 	const char	*errstr;
-	char		*location = NULL;
-	off_t		 content_length = 0;
 
 	if (strncasecmp(buf, "Content-Length: ", 16) == 0) {
 		if ((buf = strchr(buf, ' ')) == NULL)
 			errx(1, "Failed to parse Content-Length header");
 
 		buf++;
-		content_length = strtonum(buf, 0, INT64_MAX, &errstr);
+		headers->content_length = strtonum(buf, 0, INT64_MAX, &errstr);
 		if (errstr)
 			err(1, "%s: Content Length is %s: %lld", __func__,
-			    errstr, content_length);
+			    errstr, headers->content_length);
 	}
 
 	if (strncasecmp(buf, "Location: ", 10) == 0) {
 		if ((buf = strchr(buf, ' ')) == NULL)
 			errx(1, "Failed to parse Location header");
 
-		location = xstrdup(++buf, __func__);
+		headers->location = xstrdup(++buf, __func__);
 	}
-
-	if ((*headers = malloc(sizeof **headers)) == NULL)
-		err(1, "%s: malloc", __func__);
-
-	(*headers)->content_length = content_length;
-	(*headers)->location = location;
 }
 
 static void
