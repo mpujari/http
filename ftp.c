@@ -289,7 +289,7 @@ static int
 ftp_auth(const char *user, const char *pass)
 {
 	char	*addr = NULL, hn[MAXHOSTNAMELEN+1], *un;
-	int	 code, ret;
+	int	 code;
 
 	code = ftp_command(ctrl_sock, "USER %s", user ? user : "anonymous");
 	if (code != P_OK && code != P_INTER)
@@ -300,7 +300,7 @@ ftp_auth(const char *user, const char *pass)
 			err(1, "ftp_auth: gethostname");
 
 		un = getlogin();
-		if (asprintf(&addr, "%s@%s", un ? un : "anonymous") == -1)
+		if (asprintf(&addr, "%s@%s", un ? un : "anonymous", hn) == -1)
 			err(1, "%s: asprintf", __func__);
 	}
 
