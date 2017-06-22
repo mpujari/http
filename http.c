@@ -361,8 +361,8 @@ http_redirect(struct url *old_url, const char *url_str)
 void
 http_save(struct url *url, int fd)
 {
-	FILE		*fp;
-	ssize_t		 r;
+	FILE	*fp;
+	ssize_t	 r;
 
 	if ((fp = fdopen(fd, "w")) == NULL)
 		err(1, "%s: fdopen", __func__);
