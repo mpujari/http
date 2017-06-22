@@ -197,7 +197,7 @@ ftp_command(int fd, const char *fmt, ...)
 	case -1:
 		return -1;
 	case 0:
-		errx(1, "ftp_command: socket closed");
+		errx(1, "%s: socket closed", __func__);
 	}
 
 	return ftp_readline(fd, buf, sizeof buf);
@@ -247,10 +247,10 @@ ftp_pasv(int fd)
 	sa.sin_port = htons(pack2(port, 0));
 
 	if ((sock = socket(sa.sin_family, SOCK_STREAM, 0)) == -1)
-		err(1, "ftp_pasv: socket");
+		err(1, "%s: socket", __func__);
 
 	if (connect(sock, (struct sockaddr *)&sa, sa.sin_len) == -1)
-		err(1, "ftp_pasv: connect");
+		err(1, "%s: connect", __func__);
 
 	return sock;
 }
@@ -277,7 +277,7 @@ ftp_size(int fd, const char *fn, off_t *sizep)
 	s++;
 	file_sz = strtonum(s, 0, LLONG_MAX, &errstr);
 	if (errstr)
-		errx(1, "ftp_size: size is %s: %s", errstr, s);
+		errx(1, "%s: size is %s: %s", __func__, errstr, s);
 
 	if (sizep)
 		*sizep = file_sz;
@@ -297,7 +297,7 @@ ftp_auth(const char *user, const char *pass)
 
 	if (pass == NULL) {
 		if (gethostname(hn, sizeof hn) == -1)
-			err(1, "ftp_auth: gethostname");
+			err(1, "%s: gethostname", __func__);
 
 		un = getlogin();
 		if (asprintf(&addr, "%s@%s", un ? un : "anonymous", hn) == -1)

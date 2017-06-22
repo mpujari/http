@@ -187,10 +187,10 @@ re_exec(int sock, int argc, char **argv)
 
 	nargc = argc + 4;
 	if ((nargv = calloc(nargc, sizeof(*nargv))) == NULL)
-		err(1, "calloc");
+		err(1, "%s: calloc", __func__);
 
 	if (asprintf(&sock_str, "%d", sock) == -1)
-		err(1, "asprintf");
+		err(1, "%s: asprintf", __func__);
 
 	i = 0;
 	nargv[i++] = argv[0];
@@ -432,7 +432,7 @@ url_parse(const char *str)
 		auth_len = t - url_str;
 		basic_auth_len = (auth_len + 2) / 3 * 4 + 1;
 		if ((basic_auth = calloc(1, basic_auth_len)) == NULL)
-			err(1, "calloc");
+			err(1, "%s: calloc", __func__);
 
 		if (b64_ntop((unsigned char *)url_str, auth_len,
 		    basic_auth, basic_auth_len) == -1)
@@ -466,7 +466,7 @@ url_parse(const char *str)
 	}
 
 	if ((url = calloc(1, sizeof *url)) == NULL)
-		err(1, "malloc");
+		err(1, "%s: malloc", __func__);
 
 	url->scheme = scheme;
 	url->host = host;

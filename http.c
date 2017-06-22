@@ -279,7 +279,7 @@ http_get(struct url *url)
 
  redirected:
 	if (asprintf(&range, "Range: bytes=%lld-\r\n", url->offset) == -1)
-		err(1, "asprintf");
+		err(1, "%s: asprintf", __func__);
 
 	code = http_request(url->scheme, &headers,
 	    "GET %s HTTP/1.0\r\n"
@@ -339,7 +339,7 @@ http_redirect(struct url *old_url, const char *url_str)
 	/* TODO: RFC 3986 #5.2 */
 	if (url_str[0]== '/') {
 		if ((new_url = calloc(1, sizeof *new_url)) == NULL)
-			err(1, "calloc");
+			err(1, "%s: calloc", __func__);
 
 		new_url->scheme = old_url->scheme;
 		new_url->host = xstrdup(old_url->host, __func__);
@@ -503,7 +503,7 @@ headers_parse(struct http_headers **headers, const char *buf)
 	}
 
 	if ((*headers = malloc(sizeof **headers)) == NULL)
-		err(1, "malloc");
+		err(1, "%s: malloc", __func__);
 
 	(*headers)->content_length = content_length;
 	(*headers)->location = location;
