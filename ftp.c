@@ -258,8 +258,7 @@ ftp_pasv(int fd)
 static int
 ftp_size(int fd, const char *fn, off_t *sizep)
 {
-	char		 buf[MAX_LINE], *s;
-	const char	*errstr;
+	char		 buf[MAX_LINE];
 	off_t		 file_sz;
 	int		 code;
 
@@ -269,15 +268,8 @@ ftp_size(int fd, const char *fn, off_t *sizep)
 	if ((code = ftp_readline(fd, buf, sizeof buf)) != P_OK)
 		return code;
 
-	if ((s = strchr(buf, ' ')) == NULL) {
-		warnx("Malformed SIZE reply");
-		return -1;
-	}
-
-	s++;
-	file_sz = strtonum(s, 0, LLONG_MAX, &errstr);
-	if (errstr)
-		errx(1, "%s: size is %s: %s", __func__, errstr, s);
+	if (sscanf(buf, "%*u %lld", &file_sz) != 1)
+		errx(1, "%s: sscanf size", __func__);
 
 	if (sizep)
 		*sizep = file_sz;
