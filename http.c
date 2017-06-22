@@ -248,6 +248,7 @@ void
 proxy_connect(struct url *url, int fd)
 {
 	char	buf[MAX_LINE];
+	int	code;
 
 	writeline(fd,
 	    "CONNECT %s:%s HTTP/1.0\r\n"
@@ -265,9 +266,9 @@ proxy_connect(struct url *url, int fd)
 	if (readline(fd, buf, sizeof buf) <= 0)
 		errx(1, "%s: Failed to get proxy response", __func__);
 
-	if (http_status_code(buf) != 200)
-		errx(1, "%s: Failed CONNECT to %s:%s\n", __func__,
-		    url->host, url->port);
+	if ((code = http_status_code(buf)) != 200)
+		errx(1, "%s: Failed CONNECT to %s:%s: %s\n", __func__,
+		    url->host, url->port, http_error(code));
 }
 
 struct url *
