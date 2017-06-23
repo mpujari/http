@@ -313,6 +313,9 @@ log_request(const char *prefix, struct url *url)
 {
 	int	custom_port;
 
+	if (url->scheme == S_FILE)
+		return;
+
 	custom_port = strcmp(url->port, port_str[url->scheme]) ? 1 : 0;
 	if (proxy)
 		log_info("%s %s://%s%s%s%s\n"
