@@ -401,7 +401,8 @@ struct url *
 url_parse(const char *str)
 {
 	struct url	*url;
-	char		*basic_auth = NULL, *host, *port = NULL, *path = NULL;
+	char		*host = NULL, *port = NULL;
+	char		*basic_auth = NULL, *path = NULL;
 	char		*url_str, *url_strp, *t;
 	size_t		 auth_len, basic_auth_len;
 	int		 scheme = S_HTTP;
