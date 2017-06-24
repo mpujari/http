@@ -202,7 +202,9 @@ ftp_command(const char *fmt, ...)
 	if (http_debug)
 		printf(">>> %s\n", cmd);
 
-	fprintf(ctrl_fp, "%s\r\n", cmd);
+	if (fprintf(ctrl_fp, "%s\r\n", cmd) < 0)
+		errx(1, "%s: fprintf", __func__);
+
 	free(cmd);
 	r = ftp_getline(&buf, &n);
 	free(buf);
@@ -229,7 +231,7 @@ ftp_pasv(void)
 		printf(">>> PASV\n");
 
 	if (fprintf(ctrl_fp, "PASV\r\n") < 0)
-		return NULL;
+		errx(1, "%s: fprintf", __func__);
 
 	if (ftp_getline(&buf, &n) != P_OK) {
 		free(buf);
@@ -280,7 +282,7 @@ ftp_size(const char *fn, off_t *sizep)
 		printf(">>> SIZE %s\n", fn);
 
 	if (fprintf(ctrl_fp, "SIZE %s\r\n", fn) < 0)
-		return -1;
+		errx(1, "%s: fprintf", __func__);
 
 	if ((code = ftp_getline(&buf, &n)) != P_OK) {
 		free(buf);
