@@ -533,3 +533,55 @@ http_status_cmp(const void *a, const void *b)
 
 	return (ea->code - eb->code);
 }
+
+#define MINBUF	128
+ssize_t
+tls_getline(char **buf, size_t *buflen, struct tls *tls)
+{
+	char		*newb;
+	size_t		 newlen, off;
+	int		 ret;
+	unsigned char	 c;
+
+	if (buf == NULL || buflen == NULL) {
+		/* tls_set_errorx(tls, "invalid arguments"); */
+		return -1;
+	}
+
+	/* If buf is NULL, we have to assume a size of zero */
+	if (*buf == NULL)
+		*buflen = 0;
+
+	off = 0;
+	do {
+		do {
+			ret = tls_read(tls, &c, 1);
+		} while (ret == TLS_WANT_POLLIN || ret == TLS_WANT_POLLOUT);
+		if (ret == -1)
+			return -1;
+
+		/* Ensure we can handle it */
+		if (off + 2 > SSIZE_MAX) {
+			/* tls_set_errorx(tls, "overflow"); */
+			return -1;
+		}
+
+		newlen = off + 2; /* reserve space for NUL terminator */
+		if (newlen > *buflen) {
+			newlen = newlen < MINBUF ? MINBUF : *buflen * 2;
+			newb = recallocarray(*buf, *buflen, newlen, 1);
+			if (newb == NULL) {
+				/* tls_set_error(tls, "reallocarray"); */
+				return -1;
+			}
+			*buf = newb;
+			*buflen = newlen;
+		}
+
+		*(*buf + off) = c;
+		off += 1;
+ 	} while (c != '\n');
+
+	*(*buf + off) = '\0';
+	return off;
+}
