@@ -18,7 +18,6 @@
 
 #include <stdio.h>
 
-#define MAX_LINE	4096
 #define TMPBUF_LEN	131072
 
 #define	S_HTTP	0
@@ -31,7 +30,6 @@ enum {
 	IMSG_OPEN
 };
 
-struct tls;
 struct imsg;
 struct imsgbuf;
 
