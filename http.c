@@ -272,6 +272,9 @@ proxy_connect(struct url *url, FILE *proxy_fp)
 	    url->basic_auth ? url->basic_auth : "") == -1))
 		err(1, "%s: asprintf", __func__);
 
+	if (http_debug)
+		printf("<<< %s\n", cmd);
+
 	switch (url->scheme) {
 	case S_HTTP:
 		if (fprintf(proxy_fp, "%s\r\n", cmd) < 0)
@@ -291,6 +294,9 @@ proxy_connect(struct url *url, FILE *proxy_fp)
 	}
 
 	free(cmd);
+	if (http_debug)
+		printf(">>> %s\n", buf);
+
 	if ((code = http_status_code(buf)) != 200)
 		errx(1, "%s: Failed CONNECT to %s:%s: %s\n", __func__,
 		    url->host, url->port, http_error(code));
