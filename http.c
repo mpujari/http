@@ -333,7 +333,7 @@ http_get(struct url *url)
 	return url;
 }
 
-struct url *
+static struct url *
 http_redirect(struct url *old_url, const char *url_str)
 {
 	struct url	*new_url;
