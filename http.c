@@ -422,7 +422,7 @@ http_request(int scheme, struct http_headers **headers, const char *fmt, ...)
 	va_list	 ap;
 	char	*req, *buf = NULL;
 	size_t	 n = 0;
-	ssize_t	 buflen, nw;
+	ssize_t	 nw;
 	int	 code, r;
 
 	va_start(ap, fmt);
@@ -437,15 +437,15 @@ http_request(int scheme, struct http_headers **headers, const char *fmt, ...)
 	if (scheme == S_HTTP) {
 		if (fprintf(fp, "%s\r\n", req) < 0)
 			errx(1, "%s: fprintf", __func__);
-		if ((buflen = getline(&buf, &n, fp)) == -1)
+		if (getline(&buf, &n, fp) == -1)
 			err(1, "%s: getline", __func__);
 	} else {
 		do {
 			nw = tls_write(ctx, req, r);
 		} while (nw == TLS_WANT_POLLIN || nw == TLS_WANT_POLLOUT);
 		if (nw == -1)
-			errx(1, "%s: tls_writeline", __func__);
-		if ((buflen = tls_getline(&buf, &n, ctx)) == -1)
+			errx(1, "%s: tls_write", __func__);
+		if (tls_getline(&buf, &n, ctx) == -1)
 			errx(1, "%s: tls_getline", __func__);
 	}
 
