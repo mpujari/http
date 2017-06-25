@@ -70,16 +70,6 @@ struct url	*http_get(struct url *);
 void		 http_save(struct url *, int);
 void		 https_init(void);
 
-/* io.c */
-ssize_t	buffer_drain(int);
-ssize_t	readline(int, void *, size_t);
-ssize_t	writeline(int, const char *, ...)
-	    __attribute__((__format__ (printf, 2, 3)))
-	    __attribute__((__nonnull__ (2)));
-ssize_t	vwriteline(int, const char *, va_list);
-ssize_t	tls_readline(struct tls *, char *, size_t);
-ssize_t	tls_vwriteline(struct tls *, const char *, va_list);
-
 /* main.c */
 extern const char	*scheme_str[];
 extern const char	*port_str[];
