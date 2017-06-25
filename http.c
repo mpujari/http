@@ -120,21 +120,22 @@ struct http_headers {
 	off_t	 content_length;
 };
 
-static void		 headers_parse(struct http_headers *, const char *);
-static void		 headers_free(struct http_headers *);
-static void		 http_close(struct url *);
-static const char	*http_error(int);
-static struct url	*http_redirect(struct url *, const char *);
-static int		 http_status_code(const char *);
-static int		 http_status_cmp(const void *, const void *);
-static int		 http_request(int, struct http_headers **,
-			    const char *, ...)
-			    __attribute__((__format__ (printf, 3, 4)))
-			    __attribute__((__nonnull__ (3)));
+static struct http_headers	*headers_parse(int);
+static void			 headers_free(struct http_headers *);
+static void			 http_close(struct url *);
+static const char		*http_error(int);
+static struct url		*http_redirect(struct url *, const char *);
+static int			 http_status_code(const char *);
+static int			 http_status_cmp(const void *, const void *);
+static int			 http_request(int, struct http_headers **,
+				    const char *, ...)
+				    __attribute__((__format__ (printf, 3, 4)))
+				    __attribute__((__nonnull__ (3)));
+static ssize_t			 tls_getline(char **, size_t *, struct tls *);
 
 static struct tls_config	*tls_config;
 static struct tls		*ctx;
-static int			 sock;
+static FILE			*fp;
 
 static char * const		 tls_verify_opts[] = {
 #define HTTP_TLS_CAFILE		0
@@ -227,9 +228,14 @@ https_init(void)
 void
 http_connect(struct url *url, int timeout)
 {
+	int	sock;
+
 	sock = tcp_connect(url->host, url->port, timeout);
 	if (proxy)
 		proxy_connect(url, sock);
+
+	if ((fp = fdopen(sock, "r+")) == NULL)
+		err(1, "%s: fdopen", __func__);
 
 	if (url->scheme == S_HTTP)
 		return;
@@ -315,7 +321,6 @@ http_get(struct url *url)
 
 		url = http_redirect(url, headers->location);
 		headers_free(headers);
-		buffer_drain(-1);
 		log_request("Redirected to", url);
 		http_connect(url, 0);
 		log_request("Requesting", url);
@@ -361,17 +366,17 @@ http_redirect(struct url *old_url, const char *url_str)
 void
 http_save(struct url *url, int fd)
 {
-	FILE	*fp;
+	FILE	*dst_fp;
 	ssize_t	 r;
 
-	if ((fp = fdopen(fd, "w")) == NULL)
+	if ((dst_fp = fdopen(fd, "w")) == NULL)
 		err(1, "%s: fdopen", __func__);
 
-	url->offset += buffer_drain(fd);
-	while (1) {
+	for(;;) {
 		if (url->scheme == S_HTTP) {
-			if ((r = read(sock, tmp_buf, TMPBUF_LEN)) == -1)
-				err(1, "%s: read", __func__);
+			r = fread(tmp_buf, 1, TMPBUF_LEN, fp);
+			if (r == 0 && !feof(fp))
+				err(1, "%s: fread", __func__);
 		} else {
  again:
 			r = tls_read(ctx, tmp_buf, TMPBUF_LEN);
@@ -388,11 +393,11 @@ http_save(struct url *url, int fd)
 			break;
 
 		url->offset += r;
-		if (fwrite(tmp_buf, r, 1, fp) != 1)
+		if (fwrite(tmp_buf, r, 1, dst_fp) != 1)
 			err(1, "%s: fwrite", __func__);
 	}
 
- 	fclose(fp);
+ 	fclose(dst_fp);
 	http_close(url);
 }
 
@@ -408,56 +413,51 @@ http_close(struct url *url)
 		tls_free(ctx);
 	}
 
-	close(sock);
+	fclose(fp);
 }
 
 static int
 http_request(int scheme, struct http_headers **headers, const char *fmt, ...)
 {
-	char	buf[MAX_LINE];
-	va_list	ap;
-	ssize_t	r;
-	int	code;
+	va_list	 ap;
+	char	*req, *buf = NULL;
+	size_t	 n = 0;
+	ssize_t	 buflen, nw;
+	int	 code, r;
 
 	va_start(ap, fmt);
-	if (scheme == S_HTTP)
-		r = vwriteline(sock, fmt, ap);
-	else
-		r = tls_vwriteline(ctx, fmt, ap);
+	r = vasprintf(&req, fmt, ap);
 	va_end(ap);
+	if (r < 0)
+		err(1, "%s: vasprintf", __func__);
 
-	if (r == 0)
-		errx(1, "%s: socket closed", __func__);
+	if (http_debug)
+		printf("<<< %s\n", req);
 
-	if (scheme == S_HTTP)
-		r = readline(sock, buf, sizeof buf);
-	else
-		r = tls_readline(ctx, buf, sizeof buf);
-
-	if (r <= 0)
-		errx(1, "%s: Failed to get response", __func__);
-
-	if ((code = http_status_code(buf)) == -1)
-		errx(1, "%s: Failed to extract status code", __func__);
-
-	if ((*headers = calloc(1, sizeof **headers)) == NULL)
-		err(1, "%s: calloc", __func__);
-
-	while (1) {
-		if (scheme == S_HTTP)
-			r = readline(sock, buf, sizeof buf);
-		else
-			r = tls_readline(ctx, buf, sizeof buf);
-
-		if (r == -1)
-			errx(1, "%s: readline failed", __func__);
-
-		if (r == 0)
-			break;
-
-		headers_parse(*headers, buf);
+	if (scheme == S_HTTP) {
+		if (fprintf(fp, "%s\r\n", req) < 0)
+			errx(1, "%s: fprintf", __func__);
+		if ((buflen = getline(&buf, &n, fp)) == -1)
+			err(1, "%s: getline", __func__);
+	} else {
+		do {
+			nw = tls_write(ctx, req, r);
+		} while (nw == TLS_WANT_POLLIN || nw == TLS_WANT_POLLOUT);
+		if (nw == -1)
+			errx(1, "%s: tls_writeline", __func__);
+		if ((buflen = tls_getline(&buf, &n, ctx)) == -1)
+			errx(1, "%s: tls_getline", __func__);
 	}
 
+	free(req);
+	if (http_debug)
+		printf(">>> %s", buf);
+
+	if ((code = http_status_code(buf)) == -1)
+		errx(1, "%s: failed to extract status code", __func__);
+
+	free(buf);
+	*headers = headers_parse(scheme);
 	return code;
 }
 
@@ -475,28 +475,63 @@ http_status_code(const char *status_line)
 	return code;
 }
 
-static void
-headers_parse(struct http_headers *headers, const char *buf)
+static struct http_headers *
+headers_parse(int scheme)
 {
-	const char	*errstr;
+	struct http_headers	*headers;
+	char			*buf = NULL, *p;
+	const char		*errstr;
+	size_t			 n = 0;
+	ssize_t			 buflen;
 
-	if (strncasecmp(buf, "Content-Length: ", 16) == 0) {
-		if ((buf = strchr(buf, ' ')) == NULL)
-			errx(1, "Failed to parse Content-Length header");
+	if ((headers = calloc(1, sizeof *headers)) == NULL)
+		err(1, "%s: calloc", __func__);
 
-		buf++;
-		headers->content_length = strtonum(buf, 0, INT64_MAX, &errstr);
-		if (errstr)
-			err(1, "%s: Content Length is %s: %lld", __func__,
-			    errstr, headers->content_length);
+	for (;;) {
+		if (scheme == S_HTTP) {
+			if ((buflen = getline(&buf, &n, fp)) == -1)
+				err(1, "%s: getline", __func__);
+		} else {
+			if ((buflen = tls_getline(&buf, &n, ctx)) == -1)
+				err(1, "%s: tls_getline", __func__);
+		}
+
+		buf[buflen - 1] = '\0';
+		buflen -= 1;
+		if (buflen > 0 && buf[buflen - 1] == '\r') {
+			buf[buflen - 1] = '\0';
+			buflen -= 1;
+		}
+
+		if (http_debug)
+			printf(">>> %s\n", buf);
+
+		if (buflen == 0)
+			break; /* end of headers */
+
+		if (strncasecmp(buf, "Content-Length: ", 16) == 0) {
+			if ((p = strchr(buf, ' ')) == NULL)
+				errx(1, "Failed to parse Content-Length");
+
+			p++;
+			headers->content_length = strtonum(p, 0,
+			    INT64_MAX, &errstr);
+			if (errstr)
+				err(1, "%s: Content Length is %s: %lld",
+				    __func__, errstr, headers->content_length);
+		}
+
+		if (strncasecmp(buf, "Location: ", 10) == 0) {
+			if ((p = strchr(buf, ' ')) == NULL)
+				errx(1, "Failed to parse Location");
+
+			headers->location = xstrdup(++p, __func__);
+		}
+
 	}
 
-	if (strncasecmp(buf, "Location: ", 10) == 0) {
-		if ((buf = strchr(buf, ' ')) == NULL)
-			errx(1, "Failed to parse Location header");
-
-		headers->location = xstrdup(++buf, __func__);
-	}
+	free(buf);
+	return headers;
 }
 
 static void
@@ -535,7 +570,7 @@ http_status_cmp(const void *a, const void *b)
 }
 
 #define MINBUF	128
-ssize_t
+static ssize_t
 tls_getline(char **buf, size_t *buflen, struct tls *tls)
 {
 	char		*newb;
