@@ -318,8 +318,8 @@ log_request(const char *prefix, struct url *url)
 
 	custom_port = strcmp(url->port, port_str[url->scheme]) ? 1 : 0;
 	if (proxy)
-		log_info("%s %s://%s%s%s%s\n"
-		    " (via %s://%s%s%s)",
+		log_info("%s %s://%s%s%s%s"
+		    " (via %s://%s%s%s)\n",
 		    prefix,
 		    scheme_str[url->scheme],
 		    url->host,
