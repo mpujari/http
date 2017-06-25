@@ -433,6 +433,7 @@ http_request(int scheme, struct http_headers **headers, const char *fmt, ...)
 	if (scheme == S_HTTP) {
 		if (fprintf(fp, "%s\r\n", req) < 0)
 			errx(1, "%s: fprintf", __func__);
+		(void)fflush(fp);
 		if (getline(&buf, &n, fp) == -1)
 			err(1, "%s: getline", __func__);
 	} else {
