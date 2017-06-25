@@ -16,7 +16,6 @@
 
 #include <sys/types.h>
 
-#include <stdarg.h>
 #include <stdio.h>
 
 #define MAX_LINE	4096
