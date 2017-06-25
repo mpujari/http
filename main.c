@@ -392,8 +392,8 @@ env_parse(void)
 		return;
 
 	proxy = url_parse(proxy_str);
-	if (proxy->scheme != S_HTTP)
-		errx(1, "Invalid proxy scheme: %s", proxy_str);
+	if (proxy->scheme != S_HTTP && proxy->scheme != S_HTTPS)
+		errx(1, "invalid proxy scheme: %s", proxy_str);
 }
 
 struct url *

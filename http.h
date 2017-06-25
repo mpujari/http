@@ -102,7 +102,7 @@ void	stop_progress_meter(void);
 /* util.c */
 char	*url_encode(const char *);
 int	 tcp_connect(const char *, const char *, int);
-void	 proxy_connect(struct url *, int);
+void	 proxy_connect(struct url *, FILE *);
 char	*xstrdup(const char *, const char *);
 char	*xstrndup(const char *, size_t, const char *);
 off_t	 stat_request(struct imsgbuf *, struct imsg *, const char *, int *);

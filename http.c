@@ -231,11 +231,11 @@ http_connect(struct url *url, int timeout)
 	int	sock;
 
 	sock = tcp_connect(url->host, url->port, timeout);
-	if (proxy)
-		proxy_connect(url, sock);
-
 	if ((fp = fdopen(sock, "r+")) == NULL)
 		err(1, "%s: fdopen", __func__);
+
+	if (proxy)
+		proxy_connect(url, fp);
 
 	if (url->scheme == S_HTTP)
 		return;
@@ -251,12 +251,14 @@ http_connect(struct url *url, int timeout)
 }
 
 void
-proxy_connect(struct url *url, int fd)
+proxy_connect(struct url *url, FILE *proxy_fp)
 {
-	char	buf[MAX_LINE];
-	int	code;
+	char	*buf = NULL, *cmd;
+	size_t	 n = 0;
+	ssize_t	 nw;
+	int	 code, r;
 
-	writeline(fd,
+	if ((r = asprintf(&cmd,
 	    "CONNECT %s:%s HTTP/1.0\r\n"
 	    "Host: %s\r\n"
 	    "User-Agent: %s\r\n"
@@ -267,14 +269,33 @@ proxy_connect(struct url *url, int fd)
 	    url->host,
 	    ua,
 	    url->basic_auth ? "Proxy-Authorization: Basic " : "",
-	    url->basic_auth ? url->basic_auth : "");
+	    url->basic_auth ? url->basic_auth : "") == -1))
+		err(1, "%s: asprintf", __func__);
 
-	if (readline(fd, buf, sizeof buf) <= 0)
-		errx(1, "%s: Failed to get proxy response", __func__);
+	switch (url->scheme) {
+	case S_HTTP:
+		if (fprintf(proxy_fp, "%s\r\n", cmd) < 0)
+			errx(1, "%s: fprintf", __func__);
+		if (getline(&buf, &n, proxy_fp) == -1)
+			err(1, "%s: getline", __func__);
+		break;
+	case S_HTTPS:
+		do {
+			nw = tls_write(ctx, cmd, r);
+		} while (nw == TLS_WANT_POLLIN || nw == TLS_WANT_POLLOUT);
+		if (nw == -1)
+			errx(1, "%s: tls_write", __func__);
+		if (tls_getline(&buf, &n, ctx) == -1)
+			errx(1, "%s: tls_getline", __func__);
+		break;
+	}
 
+	free(cmd);
 	if ((code = http_status_code(buf)) != 200)
 		errx(1, "%s: Failed CONNECT to %s:%s: %s\n", __func__,
 		    url->host, url->port, http_error(code));
+
+	free(buf);
 }
 
 struct url *

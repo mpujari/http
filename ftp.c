@@ -56,11 +56,11 @@ ftp_connect(struct url *url, int timeout)
 	int	 sock;
 
 	sock = tcp_connect(url->host, url->port, timeout);
-	if (proxy)
-		proxy_connect(url, sock);
-
 	if ((ctrl_fp = fdopen(sock, "r+")) == NULL)
 		err(1, "%s: fdopen", __func__);
+
+	if (proxy)
+		proxy_connect(url, ctrl_fp);
 
 	/* greeting */
 	if (ftp_getline(&buf, &n) != P_OK) {
