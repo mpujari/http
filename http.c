@@ -484,7 +484,9 @@ http_request(int scheme, struct http_headers **headers, const char *fmt, ...)
 		errx(1, "%s: failed to extract status code", __func__);
 
 	free(buf);
-	*headers = headers_parse(scheme);
+	if (headers != NULL)
+		*headers = headers_parse(scheme);
+
 	return code;
 }
 
