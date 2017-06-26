@@ -63,15 +63,7 @@ file_save(struct url *url, int dst_fd)
 	if ((dst_fp = fdopen(dst_fd, "w")) == NULL)
 		err(1, "%s: fdopen", __func__);
 
-	while ((r = fread(tmp_buf, 1, TMPBUF_LEN, src_fp)) != 0) {
-		url->offset += r;
-		if (fwrite(tmp_buf, 1, r, dst_fp) != r)
-			err(1, "%s: fwrite", __func__);
-	}
-
-	if (!feof(src_fp))
-		errx(1, "%s: fread", __func__);
-
+	copy_file(url, src_fp, dst_fp);
 	fclose(dst_fp);
 	fclose(src_fp);
 }

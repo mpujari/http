@@ -49,7 +49,6 @@ __dead void		 usage(void);
 
 const char	*scheme_str[] = { "http", "https", "ftp", "file" };
 const char	*port_str[] = { "80", "443", "21", "" };
-char		 tmp_buf[TMPBUF_LEN];
 const char	*ua = "OpenBSD http";
 const char	*title;
 char		*tls_options;

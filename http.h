@@ -18,12 +18,12 @@
 
 #include <stdio.h>
 
-#define TMPBUF_LEN	131072
-
 #define	S_HTTP	0
 #define S_HTTPS	1
 #define S_FTP	2
 #define S_FILE	3
+
+#define TMPBUF_LEN	131072
 
 enum {
 	IMSG_STAT,
@@ -70,7 +70,6 @@ void		 https_init(void);
 /* main.c */
 extern const char	*scheme_str[];
 extern const char	*port_str[];
-extern char		 tmp_buf[TMPBUF_LEN];
 extern char		*tls_options;
 extern const char	*ua;
 extern const char	*title;
@@ -87,6 +86,7 @@ void	start_progress_meter(const char *, off_t, off_t *);
 void	stop_progress_meter(void);
 
 /* util.c */
+void	 copy_file(struct url *, FILE *, FILE *);
 char	*url_encode(const char *);
 int	 tcp_connect(const char *, const char *, int);
 void	 proxy_connect(struct url *, FILE *);

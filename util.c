@@ -343,3 +343,24 @@ log_request(const char *prefix, struct url *url)
 		    custom_port ? url->port : "",
 		    url->path ? url->path : "");
 }
+
+void
+copy_file(struct url *url, FILE *src_fp, FILE *dst_fp)
+{
+	char	*tmp_buf;
+	ssize_t	 r;
+
+	if ((tmp_buf = malloc(TMPBUF_LEN)) == NULL)
+		err(1, "%s: malloc", __func__);
+
+	while ((r = fread(tmp_buf, 1, TMPBUF_LEN, src_fp)) != 0) {
+		url->offset += r;
+		if (fwrite(tmp_buf, 1, r, dst_fp) != r)
+			err(1, "%s: fwrite", __func__);
+	}
+
+	if (!feof(src_fp))
+		errx(1, "%s: fread", __func__);
+
+	free(tmp_buf);
+}

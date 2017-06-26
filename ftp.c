@@ -118,15 +118,7 @@ ftp_save(struct url *url, int fd)
 	if ((fp = fdopen(fd, "w")) == NULL)
 		err(1, "%s: fdopen", __func__);
 
-	while ((r = fread(tmp_buf, 1, TMPBUF_LEN, data_fp)) != 0) {
-		url->offset += r;
-		if (fwrite(tmp_buf, 1, r, fp) != r)
-			err(1, "%s: fwrite", __func__);
-	}
-
-	if (!feof(data_fp))
-		errx(1, "%s: fread", __func__);
-
+	copy_file(url, fp, data_fp);
 	fclose(fp);
 	fclose(data_fp);
 }

@@ -363,36 +363,37 @@ void
 http_save(struct url *url, int fd)
 {
 	FILE	*dst_fp;
+	char	*tmp_buf;
 	ssize_t	 r;
 
 	if ((dst_fp = fdopen(fd, "w")) == NULL)
 		err(1, "%s: fdopen", __func__);
 
-	for(;;) {
-		if (url->scheme == S_HTTP) {
-			r = fread(tmp_buf, 1, TMPBUF_LEN, fp);
-			if (r == 0 && !feof(fp))
-				err(1, "%s: fread", __func__);
-		} else {
- again:
-			r = tls_read(ctx, tmp_buf, TMPBUF_LEN);
-			switch (r) {
-			case TLS_WANT_POLLIN:
-			case TLS_WANT_POLLOUT:
-				goto again;
-			case -1:
-				err(1, "tls_read: %s", tls_error(ctx));
-			}
-		}
+	if (url->scheme == S_HTTP) {
+		copy_file(url, fp, dst_fp);
+		goto done;
+	}
 
-		if (r == 0)
+	if ((tmp_buf = malloc(TMPBUF_LEN)) == NULL)
+		err(1, "%s: malloc", __func__);
+
+	for (;;) {
+		do {
+			r = tls_read(ctx, tmp_buf, TMPBUF_LEN);
+		} while (r == TLS_WANT_POLLIN || r == TLS_WANT_POLLOUT);
+
+		if (r == -1)
+			err(1, "%s: tls_read: %s", __func__, tls_error(ctx));
+		else if (r == 0)
 			break;
 
 		url->offset += r;
-		if (fwrite(tmp_buf, r, 1, dst_fp) != 1)
+		if (fwrite(tmp_buf, 1, r, dst_fp) != r)
 			err(1, "%s: fwrite", __func__);
 	}
+	free(tmp_buf);
 
+ done:
  	fclose(dst_fp);
 	http_close(url);
 }
