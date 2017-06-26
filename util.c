@@ -309,6 +309,7 @@ log_info(const char *fmt, ...)
 	vfprintf(stderr, fmt, ap);
 	va_end(ap);
 }
+
 void
 log_request(const char *prefix, struct url *url)
 {
