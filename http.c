@@ -493,7 +493,7 @@ headers_parse(int scheme)
 				err(1, "%s: getline", __func__);
 		} else {
 			if ((buflen = tls_getline(&buf, &n, ctx)) == -1)
-				err(1, "%s: tls_getline", __func__);
+				errx(1, "%s: tls_getline", __func__);
 		}
 
 		buf[buflen - 1] = '\0';
