@@ -334,12 +334,12 @@ http_get(struct url *url)
 }
 
 static struct url *
-http_redirect(struct url *old_url, const char *url_str)
+http_redirect(struct url *old_url, const char*location)
 {
 	struct url	*new_url;
 
 	/* TODO: RFC 3986 #5.2 */
-	if (url_str[0]== '/') {
+	if (location[0]== '/') {
 		if ((new_url = calloc(1, sizeof *new_url)) == NULL)
 			err(1, "%s: calloc", __func__);
 
@@ -347,11 +347,11 @@ http_redirect(struct url *old_url, const char *url_str)
 		new_url->host = xstrdup(old_url->host, __func__);
 		new_url->port = xstrdup(old_url->port, __func__);
 		new_url->basic_auth = xstrdup(old_url->basic_auth, __func__);
-		new_url->path = xstrdup(url_str, __func__);
+		new_url->path = xstrdup(location, __func__);
 	} else {
-		new_url = url_parse(url_str);
-		if (old_url->scheme == S_HTTPS && new_url->scheme != S_HTTPS)
-			errx(1, "HTTPS to HTTP redirects not permitted");
+		new_url = url_parse(location);
+		if (old_url->scheme != new_url->scheme)
+			errx(1, "scheme mismatch on redirect");
 	}
 
 	new_url->fname = xstrdup(old_url->fname, __func__);
