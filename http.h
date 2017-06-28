@@ -37,7 +37,6 @@ struct url {
 	int	 scheme;
 	char	*host;
 	char	*port;
-	char	*basic_auth;
 	char	*path;
 
 	char	*fname;

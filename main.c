@@ -463,7 +463,6 @@ url_parse(char *str)
 	url->scheme = scheme;
 	url->host = host;
 	url->port = port;
-	url->basic_auth = basic_auth;
 	url->path = path;
 	return url;
 }
@@ -476,7 +475,6 @@ url_free(struct url *url)
 
 	free(url->host);
 	free(url->port);
-	free(url->basic_auth);
 	free(url->path);
 	free(url->fname);
 	free(url);

@@ -259,14 +259,11 @@ proxy_connect(struct url *url, FILE *proxy_fp)
 	    "CONNECT %s:%s HTTP/1.0\r\n"
 	    "Host: %s\r\n"
 	    "User-Agent: %s\r\n"
-	    "%s%s"
 	    "\r\n",
 	    url->host,
 	    url->port,
 	    url->host,
-	    ua,
-	    url->basic_auth ? "Proxy-Authorization: Basic " : "",
-	    url->basic_auth ? url->basic_auth : "");
+	    ua);
 
 	if (code != 200)
 		errx(1, "%s: failed to CONNECT to %s:%s: %s\n",
@@ -289,14 +286,11 @@ http_get(struct url *url)
 	    "Host: %s\r\n"
 	    "User-Agent: %s\r\n"
 	    "%s"
-	    "%s%s"
 	    "\r\n",
 	    url->path ? url->path : "/",
 	    url->host,
 	    ua,
-	    url->offset ? range : "",
-	    url->basic_auth ? "Authorization: Basic " : "",
-	    url->basic_auth ? url->basic_auth : "");
+	    url->offset ? range : "");
 	free(range);
 
 	switch (code) {
@@ -346,7 +340,6 @@ http_redirect(struct url *old_url, const char*location)
 		new_url->scheme = old_url->scheme;
 		new_url->host = xstrdup(old_url->host, __func__);
 		new_url->port = xstrdup(old_url->port, __func__);
-		new_url->basic_auth = xstrdup(old_url->basic_auth, __func__);
 		new_url->path = xstrdup(location, __func__);
 	} else {
 		new_url = url_parse(location);
