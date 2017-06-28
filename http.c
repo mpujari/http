@@ -124,7 +124,7 @@ static struct http_headers	*headers_parse(int);
 static void			 headers_free(struct http_headers *);
 static void			 http_close(struct url *);
 static const char		*http_error(int);
-static struct url		*http_redirect(struct url *, const char *);
+static struct url		*http_redirect(struct url *, char *);
 static int			 http_status_code(const char *);
 static int			 http_status_cmp(const void *, const void *);
 static int			 http_request(int, struct http_headers **,
@@ -328,7 +328,7 @@ http_get(struct url *url)
 }
 
 static struct url *
-http_redirect(struct url *old_url, const char*location)
+http_redirect(struct url *old_url, char *location)
 {
 	struct url	*new_url;
 
