@@ -141,8 +141,10 @@ main(int argc, char **argv)
 
 	env_parse();
 
-	/* optimize 'http -o - url' case. */
-	if (oarg && strcmp(oarg, "-") == 0 && argc == 1) {
+	/* optimize 'http(s) -o - url' case. */
+	if (argc == 1 &&
+	    oarg && !strcmp(oarg, "-") &&
+	    !strncasecmp(argv[0], "http", 4)) {
 		if (pledge("stdio inet dns rpath tty", NULL) == -1)
 			err(1, "pledge");
 
