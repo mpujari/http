@@ -303,7 +303,7 @@ child(int sock, int argc, char **argv)
 		if (url->offset)
 			flags |= O_APPEND;
 
-		if (strcmp(url->fname, "-") == 0)
+		if (oarg && strcmp(oarg, "-") == 0)
 			fd = dup(STDOUT_FILENO);
 		else if ((fd = fd_request(&child_ibuf, &child_imsg,
 		    url->fname, flags)) == -1)
