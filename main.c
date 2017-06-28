@@ -149,7 +149,7 @@ main(int argc, char **argv)
 			err(1, "pledge");
 
 		url = url_parse(argv[0]);
-		url->fname = xstrdup(oarg, __func__);
+		url->fname = "-";
 		url_connect(url, connect_timeout);
 		url = url_request(url);
 		if (pledge("stdio tty", NULL) == -1)
