@@ -29,7 +29,6 @@
 #include <imsg.h>
 #include <libgen.h>
 #include <netdb.h>
-#include <resolv.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
