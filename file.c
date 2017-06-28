@@ -58,7 +58,6 @@ void
 file_save(struct url *url, int dst_fd)
 {
 	FILE	*dst_fp;
-	ssize_t	 r;
 
 	if ((dst_fp = fdopen(dst_fd, "w")) == NULL)
 		err(1, "%s: fdopen", __func__);
