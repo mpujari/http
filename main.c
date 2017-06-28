@@ -48,7 +48,7 @@ static void		 url_save(struct url *, int);
 __dead void		 usage(void);
 
 const char	*scheme_str[] = { "http", "https", "ftp", "file" };
-const char	*port_str[] = { "80", "443", "21", "" };
+const char	*port_str[] = { "80", "443", "21", NULL };
 const char	*ua = "OpenBSD http";
 const char	*title;
 char		*tls_options;
