@@ -91,6 +91,8 @@ main(int argc, char **argv)
 			break;
 		case 'o':
 			oarg = optarg;
+			if (!strlen(oarg))
+				oarg = NULL;
 			break;
 		case 'M':
 			progressmeter = 0;
