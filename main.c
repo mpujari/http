@@ -404,6 +404,7 @@ url_parse(char *str)
 {
 	struct url	*url;
 	char		*host, *port, *path, *p, *q, *r;
+	size_t		 len;
 	int		 i, scheme;
 
 	host = port = path = NULL;
@@ -436,15 +437,20 @@ url_parse(char *str)
 		/* hostname and port */
 		if ((r = strchr(p, ':')) != NULL) {
 			*r++ = '\0';
-			if (strlen(r) > NI_MAXSERV)
+			len = strlen(r);
+			if (len > NI_MAXSERV)
 				errx(1, "%s: port too long", __func__);
-			port = xstrndup(r, NI_MAXSERV, __func__);
+			if (len > 0)
+				port = xstrdup(r, __func__);
 		} else
-			port = xstrdup(port_str[scheme], __func__);
+			if (scheme != S_FILE)
+				port = xstrdup(port_str[scheme], __func__);
 
-		if (strlen(p) > MAXHOSTNAMELEN + 1)
+		len = strlen(p);
+		if (len > MAXHOSTNAMELEN + 1)
 			errx(1, "%s: hostname too long", __func__);
-		host = xstrndup(p, MAXHOSTNAMELEN+1, __func__);
+		if (len > 0)
+			host = xstrdup(p, __func__);
 
 		if (q != NULL)
 			free(p);
