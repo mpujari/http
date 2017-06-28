@@ -155,7 +155,7 @@ tcp_connect(const char *host, const char *port, int timeout)
 	hints.ai_family = PF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
 	if ((error = getaddrinfo(host, port, &hints, &res0)))
-		errx(1, "%s: %s", host, gai_strerror(error));
+		errx(1, "%s: %s: %s", __func__, gai_strerror(error), host);
 
 	if (timeout) {
 		(void)signal(SIGALRM, tooslow);
@@ -188,7 +188,7 @@ tcp_connect(const char *host, const char *port, int timeout)
 
 	freeaddrinfo(res0);
 	if (s == -1)
-		err(1, "%s", cause);
+		err(1, "%s: %s", __func__, cause);
 
 	if (timeout) {
 		signal(SIGALRM, SIG_DFL);
@@ -285,12 +285,12 @@ read_message(struct imsgbuf *ibuf, struct imsg *imsg)
 	int	n;
 
 	if ((n = imsg_read(ibuf)) == -1)
-		err(1, "imsg_read");
+		err(1, "%s: imsg_read", __func__);
 	if (n == 0)
 		return 0;
 
 	if ((n = imsg_get(ibuf, imsg)) == -1)
-		err(1, "imsg_get");
+		err(1, "%s: imsg_get", __func__);
 	if (n == 0)
 		return 0;
 
