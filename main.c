@@ -396,68 +396,61 @@ env_parse(void)
 }
 
 struct url *
-url_parse(const char *str)
+url_parse(char *str)
 {
 	struct url	*url;
-	char		*host = NULL, *port = NULL;
-	char		*basic_auth = NULL, *path = NULL;
-	char		*url_str, *url_strp, *t;
-	size_t		 auth_len, basic_auth_len;
-	int		 scheme = S_HTTP;
+	char		*host, *port, *path, *p, *q, *r;
+	int		 i, scheme;
 
-	while (isblank((unsigned char)*str))
-		str++;
+	host = port = path = NULL;
+	scheme = -1;
+	p = str;
+	while (isblank((unsigned char)*p))
+		p++;
 
-	url_str = url_strp = url_encode(str);
-
-	/* Determine the scheme */
-	if ((t = strstr(url_str, "://")) != NULL) {
-		if (strncasecmp(url_str, "http://", 7) == 0)
-			scheme = S_HTTP;
-		else if (strncasecmp(url_str, "https://", 8) == 0)
-			scheme = S_HTTPS;
-		else if (strncasecmp(url_str, "ftp://", 6) == 0)
-			scheme = S_FTP;
-		else if (strncasecmp(url_str, "file://", 7) == 0)
-			scheme = S_FILE;
-		else
-			errx(1, "%s: Invalid scheme %s", __func__, url_str);
-
-		url_str = t + strlen("://");
+	/* Scheme */
+	if ((q = strchr(p, ':')) == NULL)
+		errx(1, "%s: scheme missing: %s", __func__, str);
+	*q++ = '\0';
+	for (i = 0; i < sizeof(scheme_str)/sizeof(scheme_str[0]); i++) {
+		if (strcasecmp(str, scheme_str[i]) == 0) {
+			scheme = i;
+			break;
+		}
 	}
+	if (scheme == -1)
+		errx(1, "%s: invalid scheme: %s", __func__, p);
 
-	/* Prepare Basic Auth of credentials if present */
-	if ((t = strchr(url_str, '@')) != NULL) {
-		auth_len = t - url_str;
-		basic_auth_len = (auth_len + 2) / 3 * 4 + 1;
-		if ((basic_auth = calloc(1, basic_auth_len)) == NULL)
-			err(1, "%s: calloc", __func__);
+	/* Authority */
+	p = q;
+	if (strncmp(p, "//", 2) == 0) {
+		p += 2;
+		/* terminated by a '/' if present */
+		if ((q = strchr(p, '/')) != NULL)
+			p = xstrndup(p, q - p, __func__);
 
-		if (b64_ntop((unsigned char *)url_str, auth_len,
-		    basic_auth, basic_auth_len) == -1)
-			errx(1, "error in base64 encoding");
-
-		url_str = ++t;
-	}
-
-	/* Extract path component */
-	if ((t = strchr(url_str, '/')) != NULL) {
-		path = xstrdup(t, __func__);
-		*t = '\0';
-	}
-
-	/* hostname and port */
-	if (scheme != S_FILE) {
-		if ((t = strchr(url_str, ':')) != NULL)	{
-			*t++ = '\0';
-			port = xstrndup(t, NI_MAXSERV, __func__);
+		/* hostname and port */
+		if ((r = strchr(p, ':')) != NULL) {
+			*r++ = '\0';
+			if (strlen(r) > NI_MAXSERV)
+				errx(1, "%s: port too long", __func__);
+			port = xstrndup(r, NI_MAXSERV, __func__);
 		} else
 			port = xstrdup(port_str[scheme], __func__);
 
-		host = xstrndup(url_str, MAXHOSTNAMELEN+1, __func__);
+		if (strlen(p) > MAXHOSTNAMELEN + 1)
+			errx(1, "%s: hostname too long", __func__);
+		host = xstrndup(p, MAXHOSTNAMELEN+1, __func__);
+
+		if (q != NULL)
+			free(p);
 	}
 
-	free(url_strp);
+	/* Path */
+	p = q;
+	if (p != NULL)
+		path = xstrdup(p, __func__);
+
 	if (http_debug) {
 		fprintf(stderr,
 		    "scheme: %s\nhost: %s\nport: %s\npath: %s\n",

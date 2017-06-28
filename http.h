@@ -78,7 +78,7 @@ extern int		 http_debug;
 extern int		 progressmeter;
 extern int		 verbose;
 
-struct url	*url_parse(const char *);
+struct url	*url_parse(char *);
 void		 url_free(struct url *);
 
 /* progressmeter.c */
