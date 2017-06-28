@@ -141,7 +141,7 @@ main(int argc, char **argv)
 
 	env_parse();
 
-	/* optimize 'http(s) -o - url' case. */
+	/* optimize 'http -o - http(s)://xxx' case. */
 	if (argc == 1 &&
 	    oarg && !strcmp(oarg, "-") &&
 	    !strncasecmp(argv[0], "http", 4)) {
