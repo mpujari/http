@@ -151,6 +151,9 @@ tcp_connect(const char *host, const char *port, int timeout)
 		port = proxy->port;
 	}
 
+	if (host == NULL)
+		errx(1, "hostname missing");
+
 	memset(&hints, 0, sizeof hints);
 	hints.ai_family = PF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
