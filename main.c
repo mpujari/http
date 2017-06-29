@@ -46,7 +46,7 @@ static struct url	*url_request(struct url *);
 static void		 url_save(struct url *, int);
 __dead void		 usage(void);
 
-const char	*scheme_str[] = { "http", "https", "ftp", "file" };
+const char	*scheme_str[] = { "http:", "https:", "ftp:", "file:" };
 const char	*port_str[] = { "80", "443", "21", NULL };
 const char	*ua = "OpenBSD http";
 const char	*title;
@@ -403,6 +403,7 @@ url_parse(char *str)
 {
 	struct url	*url;
 	char		*host, *port, *path, *p, *q, *r;
+	const char	*s;
 	size_t		 len;
 	int		 i, scheme;
 
@@ -415,9 +416,9 @@ url_parse(char *str)
 	/* Scheme */
 	if ((q = strchr(p, ':')) == NULL)
 		errx(1, "%s: scheme missing: %s", __func__, str);
-	*q++ = '\0';
 	for (i = 0; i < sizeof(scheme_str)/sizeof(scheme_str[0]); i++) {
-		if (strcasecmp(str, scheme_str[i]) == 0) {
+		s = scheme_str[i];
+		if (strncasecmp(str, s, strlen(s)) == 0) {
 			scheme = i;
 			break;
 		}
@@ -426,7 +427,7 @@ url_parse(char *str)
 		errx(1, "%s: invalid scheme: %s", __func__, p);
 
 	/* Authority */
-	p = q;
+	p = ++q;
 	if (strncmp(p, "//", 2) == 0) {
 		p += 2;
 		/* terminated by a '/' if present */
