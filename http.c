@@ -265,7 +265,7 @@ proxy_connect(struct url *url, FILE *proxy_fp)
 	    ua);
 
 	if (code != 200)
-		errx(1, "%s: failed to CONNECT to %s:%s: %s\n",
+		errx(1, "%s: failed to CONNECT to %s:%s: %s",
 		    __func__, url->host, url->port, http_error(code));
 }
 
