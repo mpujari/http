@@ -330,9 +330,18 @@ static struct url *
 http_redirect(struct url *old_url, char *location)
 {
 	struct url	*new_url;
+	const char	*http, *https;
 
-	/* TODO: RFC 3986 #5.2 */
-	if (location[0]== '/') {
+	http = scheme_str[S_HTTP];
+	https = scheme_str[S_HTTPS];
+	if (strncasecmp(location, http, strlen(http)) == 0 ||
+	    strncasecmp(location, https, strlen(https)) == 0) {
+		/* absolute uri reference */
+		new_url = url_parse(location);
+		if (old_url->scheme == S_HTTPS && new_url->scheme != S_HTTPS)
+			errx(1, "aborting HTTPS to HTTP redirect");
+	} else {
+		/* relative uri reference */
 		if ((new_url = calloc(1, sizeof *new_url)) == NULL)
 			err(1, "%s: calloc", __func__);
 
@@ -340,10 +349,6 @@ http_redirect(struct url *old_url, char *location)
 		new_url->host = xstrdup(old_url->host, __func__);
 		new_url->port = xstrdup(old_url->port, __func__);
 		new_url->path = xstrdup(location, __func__);
-	} else {
-		new_url = url_parse(location);
-		if (old_url->scheme != new_url->scheme)
-			errx(1, "scheme mismatch on redirect");
 	}
 
 	new_url->fname = xstrdup(old_url->fname, __func__);
