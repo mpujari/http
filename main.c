@@ -441,9 +441,10 @@ url_parse(char *str)
 				errx(1, "%s: port too long", __func__);
 			if (len > 0)
 				port = xstrdup(r, __func__);
-		} else
-			if (scheme != S_FILE)
-				port = xstrdup(port_str[scheme], __func__);
+		}
+		/* assign default port */
+		if (port == NULL && scheme != S_FILE)
+			port = xstrdup(port_str[scheme], __func__);
 
 		len = strlen(p);
 		if (len > MAXHOSTNAMELEN + 1)
