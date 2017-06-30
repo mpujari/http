@@ -16,6 +16,7 @@
  */
 
 #include <err.h>
+#include <libgen.h>
 #include <limits.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -131,6 +132,8 @@ static int			 http_request(int, struct http_headers **,
 				    __attribute__((__format__ (printf, 3, 4)))
 				    __attribute__((__nonnull__ (3)));
 static ssize_t			 tls_getline(char **, size_t *, struct tls *);
+static char			*relative_path_resolve(const char *,
+				    const char *);
 
 static struct tls_config	*tls_config;
 static struct tls		*ctx;
@@ -334,6 +337,7 @@ http_redirect(struct url *old_url, char *location)
 
 	http = scheme_str[S_HTTP];
 	https = scheme_str[S_HTTPS];
+
 	if (strncasecmp(location, http, strlen(http)) == 0 ||
 	    strncasecmp(location, https, strlen(https)) == 0) {
 		/* absolute uri reference */
@@ -353,13 +357,35 @@ http_redirect(struct url *old_url, char *location)
 		if (location[0] == '/')
 			new_url->path = xstrdup(location, __func__);
 		else {
-			/* relative-path reference */
+			new_url->path = relative_path_resolve(old_url->path,
+			    location);
 		}
 	}
 
 	new_url->fname = xstrdup(old_url->fname, __func__);
 	url_free(old_url);
 	return new_url;
+}
+
+static char *
+relative_path_resolve(const char *base_path, const char *location)
+{
+	char	*new_path, *p;
+
+	if (base_path == NULL) {
+		if (asprintf(&new_path, "/%s", base_path) == -1)
+			err(1, "%s: asprintf", __func__);
+	} else if (base_path[strlen(base_path) - 1] == '/') {
+		if (asprintf(&new_path, "%s%s", base_path, location) == -1)
+			err(1, "%s: asprintf", __func__);
+	} else {
+		p = dirname(base_path);
+		if (asprintf(&new_path, "%s/%s",
+		    strcmp(p, ".") == 0 ? "" : p, location) == -1)
+			err(1, "%s: asprintf", __func__);
+	}
+
+	return new_path;
 }
 
 void
