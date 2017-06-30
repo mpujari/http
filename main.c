@@ -434,7 +434,7 @@ url_parse(char *str)
 		if ((q = strchr(p, '/')) != NULL)
 			p = xstrndup(p, q - p, __func__);
 
-		/* hostname and port */
+		/* Port */
 		if ((r = strchr(p, ':')) != NULL) {
 			*r++ = '\0';
 			len = strlen(r);
@@ -447,6 +447,7 @@ url_parse(char *str)
 		if (port == NULL && scheme != S_FILE)
 			port = xstrdup(port_str[scheme], __func__);
 
+		/* Host */
 		len = strlen(p);
 		if (len > MAXHOSTNAMELEN + 1)
 			errx(1, "%s: hostname too long", __func__);
