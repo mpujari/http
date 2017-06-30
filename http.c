@@ -348,7 +348,13 @@ http_redirect(struct url *old_url, char *location)
 		new_url->scheme = old_url->scheme;
 		new_url->host = xstrdup(old_url->host, __func__);
 		new_url->port = xstrdup(old_url->port, __func__);
-		new_url->path = xstrdup(location, __func__);
+
+		 /* absolute-path reference */
+		if (location[0] == '/')
+			new_url->path = xstrdup(location, __func__);
+		else {
+			/* relative-path reference */
+		}
 	}
 
 	new_url->fname = xstrdup(old_url->fname, __func__);
