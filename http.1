@@ -57,7 +57,6 @@
 .Op Fl w Ar seconds
 .Sm off
 .Pf http Oo s Oc ://
-.Op Ar user : password No @
 .Ar host Op : Ar port
 .No / Ar file Op /
 .Sm on
@@ -157,8 +156,7 @@ The following formats are valid syntax for fetching a file:
 .Dq Classic
 ftp format.
 .Sm off
-.It Xo
-.Pf ftp:// Op Ar user : password No @
+.It Xo ftp://
 .Ar host Op : Ar port
 .No / Ar file
 .Xc
@@ -168,20 +166,8 @@ An FTP URL, retrieved using the FTP protocol if
 isn't defined.
 Otherwise, transfer using HTTP via the proxy defined in
 .Ev http_proxy .
-If a
-.Ar user
-and
-.Ar password
-are given and
-.Ev http_proxy
-isn't defined,
-log in as
-.Ar user
-with a password of
-.Ar password .
 .Sm off
-.It Xo
-.Pf http:// Op Ar user : password No @
+.It Xo http://
 .Ar host Op : Ar port
 .No / Ar file
 .Xc
@@ -190,21 +176,8 @@ An HTTP URL, retrieved using the HTTP protocol.
 If
 .Ev http_proxy
 is defined, it is used as a URL to an HTTP proxy server.
-If a
-.Ar user
-and
-.Ar password
-are given and
-.Ev http_proxy
-isn't defined,
-log in as
-.Ar user
-with a password of
-.Ar password
-using Basic authentication.
 .Sm off
-.It Xo
-.Pf https:// Op Ar user : password No @
+.It Xo https://
 .Ar host Op : Ar port
 .No / Ar file
 .Xc
@@ -214,18 +187,6 @@ If
 .Ev http_proxy
 is defined, this HTTPS proxy server will be used to fetch the
 file using the CONNECT method.
-If a
-.Ar user
-and
-.Ar password
-are given and
-.Ev http_proxy
-isn't defined,
-log in as
-.Ar user
-with a password of
-.Ar password
-using Basic authentication.
 .El
 .Sh ENVIRONMENT
 .Nm
