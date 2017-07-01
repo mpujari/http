@@ -375,6 +375,12 @@ relative_path_resolve(const char *base_path, const char *location)
 {
 	char	*new_path, *p;
 
+	/* trim fragment component from both uri */
+	if ((p = strchr(location, '#')) != NULL)
+		*p = '\0';
+	if ((p = strchr(base_path, '#')) != NULL)
+		*p = '\0';
+
 	if (base_path == NULL) {
 		if (asprintf(&new_path, "/%s", base_path) == -1)
 			err(1, "%s: asprintf", __func__);
