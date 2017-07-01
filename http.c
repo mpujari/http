@@ -378,7 +378,7 @@ relative_path_resolve(const char *base_path, const char *location)
 	/* trim fragment component from both uri */
 	if ((p = strchr(location, '#')) != NULL)
 		*p = '\0';
-	if ((p = strchr(base_path, '#')) != NULL)
+	if (base_path && (p = strchr(base_path, '#')) != NULL)
 		*p = '\0';
 
 	if (base_path == NULL) {
