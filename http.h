@@ -18,6 +18,8 @@
 
 #include <stdio.h>
 
+#include "openbsd_compat.h"
+
 #define	S_HTTP	0
 #define S_HTTPS	1
 #define S_FTP	2

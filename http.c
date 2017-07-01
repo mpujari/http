@@ -24,6 +24,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <tls.h>
+#include <unistd.h>
 
 #include "http.h"
 
@@ -388,7 +389,7 @@ relative_path_resolve(const char *base_path, const char *location)
 		if (asprintf(&new_path, "%s%s", base_path, location) == -1)
 			err(1, "%s: asprintf", __func__);
 	} else {
-		p = dirname(base_path);
+		p = dirname((char *)base_path);
 		if (asprintf(&new_path, "%s/%s",
 		    strcmp(p, ".") == 0 ? "" : p, location) == -1)
 			err(1, "%s: asprintf", __func__);
