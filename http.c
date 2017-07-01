@@ -311,6 +311,9 @@ http_get(struct url *url)
 		if (++redirects > MAX_REDIRECTS)
 			errx(1, "Too many redirections requested");
 
+		if (headers->location == NULL)
+			errx(1, "%s: Location header missing", __func__);
+
 		url = http_redirect(url, headers->location);
 		headers_free(headers);
 		log_request("Redirected to", url);
