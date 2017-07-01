@@ -306,9 +306,10 @@ child(int sock, int argc, char **argv)
 		if (url->offset)
 			flags |= O_APPEND;
 
-		if (oarg && strcmp(oarg, "-") == 0)
-			fd = dup(STDOUT_FILENO);
-		else if ((fd = fd_request(&child_ibuf, &child_imsg,
+		if (oarg && strcmp(oarg, "-") == 0) {
+			if ((fd = dup(STDOUT_FILENO)) == -1)
+				err(1, "%s: dup", __func__);
+		} else if ((fd = fd_request(&child_ibuf, &child_imsg,
 		    url->fname, flags)) == -1)
 			break;
 
