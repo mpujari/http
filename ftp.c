@@ -225,26 +225,25 @@ static FILE *
 ftp_data_connect(const char *cmd)
 {
 	struct sockaddr_in	 sa;
+	FILE			*fp = NULL;
 	char			*buf = NULL, *s, *e;
 	size_t			 n = 0;
 	uint			 addr[4], port[2];
 	int			 ret, sock;
 
 	if (http_debug)
-		printf(">>> PASV\n");
+		printf(">>> %s\n", cmd);
 
-	if (fprintf(ctrl_fp, "PASV\r\n") < 0)
+	if (fprintf(ctrl_fp, "%s\r\n", cmd) < 0)
 		errx(1, "%s: fprintf", __func__);
 
 	(void)fflush(ctrl_fp);
-	if (ftp_getline(&buf, &n) != P_OK) {
-		free(buf);
-		return NULL;
-	}
+	if (ftp_getline(&buf, &n) != P_OK)
+		goto done;
 
 	if ((s = strchr(buf, '(')) == NULL || (e = strchr(s, ')')) == NULL) {
-		warnx("Malformed PASV reply");
-		return NULL;
+		warnx("Malformed %s reply", cmd);
+		goto done;
 	}
 
 	s++;
@@ -258,7 +257,6 @@ ftp_data_connect(const char *cmd)
 		return NULL;
 	}
 
-	free(buf);
 	memset(&sa, 0, sizeof sa);
 	sa.sin_family = AF_INET;
 	sa.sin_len = sizeof(sa);
@@ -271,7 +269,10 @@ ftp_data_connect(const char *cmd)
 	if (connect(sock, (struct sockaddr *)&sa, sa.sin_len) == -1)
 		err(1, "%s: connect", __func__);
 
-	return fdopen(sock, "r+");
+	fp = fdopen(sock, "r+");
+ done:
+	free(buf);
+	return fp;
 }
 
 static int
