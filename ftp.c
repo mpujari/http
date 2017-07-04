@@ -224,7 +224,9 @@ ftp_command(const char *fmt, ...)
 static FILE *
 ftp_data_connect(const char *cmd)
 {
-	struct sockaddr_in	 sa;
+	struct sockaddr_storage	 ss;
+	struct sockaddr_in	*in;
+	struct sockaddr_in6	*in6;
 	FILE			*fp = NULL;
 	char			*buf = NULL, *s, *e;
 	size_t			 n = 0;
@@ -248,25 +250,33 @@ ftp_data_connect(const char *cmd)
 
 	s++;
 	*e = '\0';
-	ret = sscanf(s, "%u,%u,%u,%u,%u,%u",
-	    &addr[0], &addr[1], &addr[2], &addr[3],
-	    &port[0], &port[1]);
+	memset(&ss, 0, sizeof(ss));
+	if (strcmp(cmd, "PASV") == 0) {
+		ret = sscanf(s, "%u,%u,%u,%u,%u,%u",
+		    &addr[0], &addr[1], &addr[2], &addr[3],
+		    &port[0], &port[1]);
 
-	if (ret != 6) {
-		warnx("Passive mode address scan failure");
-		return NULL;
+		if (ret != 6) {
+			warnx("Passive mode address scan failure");
+			goto done;
+		}
+
+		in = (struct sockaddr_in *)&ss;
+		ss.ss_family = in->sin_family = AF_INET;
+		ss.ss_len = in->sin_len = sizeof(*in);
+		in->sin_addr.s_addr = htonl(pack4(addr, 0));
+		in->sin_port = htons(pack2(port, 0));
+	} else if (strcmp(cmd, "EPSV") == 0) {
+		/* XXX */
+		in6 = (struct sockaddr_in6 *)&ss;
+		ss.ss_family = in6->sin6_family = AF_INET6;
+		ss.ss_len = in6->sin6_len = sizeof(*in6);
 	}
 
-	memset(&sa, 0, sizeof sa);
-	sa.sin_family = AF_INET;
-	sa.sin_len = sizeof(sa);
-	sa.sin_addr.s_addr = htonl(pack4(addr, 0));
-	sa.sin_port = htons(pack2(port, 0));
-
-	if ((sock = socket(sa.sin_family, SOCK_STREAM, 0)) == -1)
+	if ((sock = socket(ss.ss_family, SOCK_STREAM, 0)) == -1)
 		err(1, "%s: socket", __func__);
 
-	if (connect(sock, (struct sockaddr *)&sa, sa.sin_len) == -1)
+	if (connect(sock, (struct sockaddr *)&ss, ss.ss_len) == -1)
 		err(1, "%s: connect", __func__);
 
 	fp = fdopen(sock, "r+");
