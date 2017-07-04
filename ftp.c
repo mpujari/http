@@ -38,7 +38,7 @@
 #define	N_PERM	500
 
 static int	 ftp_auth(const char *, const char *);
-static FILE	*ftp_pasv(void);
+static FILE	*ftp_data_connect(const char *);
 static int	 ftp_size(const char *, off_t *);
 static int	 ftp_getline(char **, size_t *);
 static int	 ftp_command(const char *, ...)
@@ -82,7 +82,10 @@ ftp_connect(struct url *url, int timeout)
 struct url *
 ftp_get(struct url *url)
 {
-	char	*dir;
+	struct sockaddr_storage	 ss;
+	socklen_t		 len;
+	char			*dir;
+	const char		*cmd;
 
 	log_info("Using binary mode to transfer files.\n");
 	if (ftp_command("TYPE I") != P_OK)
@@ -99,8 +102,16 @@ ftp_get(struct url *url)
 	if (ftp_size(url->fname, &url->file_sz) != P_OK)
 		errx(1, "failed to get size of file %s", url->fname);
 
-	/* TODO: EPSV */
-	if ((data_fp = ftp_pasv()) == NULL)
+	len = sizeof(ss);
+	memset(&ss, 0, len);
+	if (getsockname(fileno(ctrl_fp), (struct sockaddr *)&ss, &len) == -1)
+		err(1, "%s: getsockame", __func__);
+
+	cmd = "EPSV";
+	if (Eflag && (ss.ss_family == AF_INET))
+		cmd = "PASV";
+
+	if ((data_fp = ftp_data_connect(cmd)) == NULL)
 		errx(1, "error retrieving file %s", url->fname);
 
 	if (ftp_command("RETR %s", url->fname) != P_PRE)
@@ -211,7 +222,7 @@ ftp_command(const char *fmt, ...)
 	 ((var[(off) + 2] & 0xff) << 8) | ((var[(off) + 3] & 0xff) << 0))
 
 static FILE *
-ftp_pasv(void)
+ftp_data_connect(const char *cmd)
 {
 	struct sockaddr_in	 sa;
 	char			*buf = NULL, *s, *e;
