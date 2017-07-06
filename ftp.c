@@ -276,7 +276,7 @@ ftp_passive(const char *cmd, struct sockaddr_storage *ss, int family)
 	size_t	 n = 0;
 
 	if (http_debug)
-		printf(">>> %s", cmd);
+		printf(">>> %s\n", cmd);
 
 	if (fprintf(ctrl_fp, "%s\r\n", cmd) < 0)
 		errx(1, "%s: fprintf", __func__);
