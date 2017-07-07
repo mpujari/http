@@ -120,21 +120,20 @@ struct http_headers {
 	off_t	 content_length;
 };
 
-static struct http_headers	*headers_parse(int);
-static void			 headers_free(struct http_headers *);
-static void			 http_close(struct url *);
-static const char		*http_error(int);
-static struct url		*http_redirect(struct url *, char *);
-static int			 http_status_code(const char *);
-static int			 http_status_cmp(const void *, const void *);
-static int			 http_request(int, struct http_headers **,
-				    const char *, ...)
-				    __attribute__((__format__ (printf, 3, 4)))
-				    __attribute__((__nonnull__ (3)));
-static ssize_t			 tls_getline(char **, size_t *, struct tls *);
-static char			*relative_path_resolve(const char *,
-				    const char *);
+static void		 headers_parse(int);
+static void		 http_close(struct url *);
+static const char	*http_error(int);
+static struct url	*http_redirect(struct url *, char *);
+static int		 http_status_code(const char *);
+static int		 http_status_cmp(const void *, const void *);
+static int		 http_request(int, const char *, ...)
+			    __attribute__((__format__ (printf, 2, 3)))
+			    __attribute__((__nonnull__ (2)));
+static ssize_t		 tls_getline(char **, size_t *, struct tls *);
+static char		*relative_path_resolve(const char *,
+			    const char *);
 
+static struct http_headers	 headers;
 static struct tls_config	*tls_config;
 static struct tls		*ctx;
 static FILE			*fp;
@@ -257,7 +256,7 @@ proxy_connect(struct url *url, FILE *proxy_fp)
 {
 	int	code;
 
-	code = http_request(url->scheme, NULL,
+	code = http_request(url->scheme,
 	    "CONNECT %s:%s HTTP/1.0\r\n"
 	    "Host: %s\r\n"
 	    "User-Agent: %s\r\n"
@@ -275,7 +274,6 @@ proxy_connect(struct url *url, FILE *proxy_fp)
 struct url *
 http_get(struct url *url)
 {
-	struct http_headers	*headers;
 	char			*range;
 	int			 code, redirects = 0;
 
@@ -283,7 +281,7 @@ http_get(struct url *url)
 	if (asprintf(&range, "Range: bytes=%lld-\r\n", url->offset) == -1)
 		err(1, "%s: asprintf", __func__);
 
-	code = http_request(url->scheme, &headers,
+	code = http_request(url->scheme,
 	    "GET %s HTTP/1.0\r\n"
 	    "Host: %s\r\n"
 	    "User-Agent: %s\r\n"
@@ -311,11 +309,10 @@ http_get(struct url *url)
 		if (++redirects > MAX_REDIRECTS)
 			errx(1, "Too many redirections requested");
 
-		if (headers->location == NULL)
+		if (headers.location == NULL)
 			errx(1, "%s: Location header missing", __func__);
 
-		url = http_redirect(url, headers->location);
-		headers_free(headers);
+		url = http_redirect(url, headers.location);
 		log_request("Redirected to", url);
 		http_connect(url, 0);
 		log_request("Requesting", url);
@@ -327,8 +324,7 @@ http_get(struct url *url)
 		errx(1, "Error retrieving file: %d %s", code, http_error(code));
 	}
 
-	url->file_sz = headers->content_length + url->offset;
-	headers_free(headers);
+	url->file_sz = headers.content_length + url->offset;
 	return url;
 }
 
@@ -452,7 +448,7 @@ http_close(struct url *url)
 }
 
 static int
-http_request(int scheme, struct http_headers **headers, const char *fmt, ...)
+http_request(int scheme, const char *fmt, ...)
 {
 	va_list	 ap;
 	char	*req, *buf = NULL;
@@ -493,9 +489,7 @@ http_request(int scheme, struct http_headers **headers, const char *fmt, ...)
 		errx(1, "%s: failed to extract status code", __func__);
 
 	free(buf);
-	if (headers != NULL)
-		*headers = headers_parse(scheme);
-
+	headers_parse(scheme);
 	return code;
 }
 
@@ -513,18 +507,16 @@ http_status_code(const char *status_line)
 	return code;
 }
 
-static struct http_headers *
+static void
 headers_parse(int scheme)
 {
-	struct http_headers	*headers;
 	char			*buf = NULL, *p;
-	const char		*errstr;
+	const char		*e;
 	size_t			 n = 0;
 	ssize_t			 buflen;
 
-	if ((headers = calloc(1, sizeof *headers)) == NULL)
-		err(1, "%s: calloc", __func__);
-
+	free(headers.location);
+	memset(&headers, 0, sizeof(headers));
 	for (;;) {
 		if (scheme == S_HTTP) {
 			if ((buflen = getline(&buf, &n, fp)) == -1)
@@ -552,34 +544,22 @@ headers_parse(int scheme)
 				errx(1, "Failed to parse Content-Length");
 
 			p++;
-			headers->content_length = strtonum(p, 0,
-			    INT64_MAX, &errstr);
-			if (errstr)
+			headers.content_length = strtonum(p, 0, INT64_MAX, &e);
+			if (e)
 				err(1, "%s: Content Length is %s: %lld",
-				    __func__, errstr, headers->content_length);
+				    __func__, e, headers.content_length);
 		}
 
 		if (strncasecmp(buf, "Location: ", 10) == 0) {
 			if ((p = strchr(buf, ' ')) == NULL)
 				errx(1, "Failed to parse Location");
 
-			headers->location = xstrdup(++p, __func__);
+			headers.location = xstrdup(++p, __func__);
 		}
 
 	}
 
 	free(buf);
-	return headers;
-}
-
-static void
-headers_free(struct http_headers *headers)
-{
-	if (headers == NULL)
-		return;
-
-	free(headers->location);
-	free(headers);
 }
 
 static const char *
