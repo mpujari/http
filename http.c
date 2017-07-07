@@ -35,7 +35,7 @@
  * https://www.iana.org/assignments/http-status-codes/http-status-codes.xhtml
  * plus legacy (306) and non-standard (420).
  */
-struct http_status {
+static struct http_status {
 	int		 code;
 	const char	*name;
 } http_status[] = {
