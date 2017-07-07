@@ -22,7 +22,6 @@
 #include <netinet/in.h>
 
 #include <err.h>
-#include <errno.h>
 #include <libgen.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -217,7 +216,7 @@ ftp_command(const char *fmt, ...)
 		errx(1, "%s: vasprintf", __func__);
 
 	if (http_debug)
-		printf(">>> %s\n", cmd);
+		fprintf(stderr, ">>> %s\n", cmd);
 
 	if (fprintf(ctrl_fp, "%s\r\n", cmd) < 0)
 		errx(1, "%s: fprintf", __func__);
@@ -276,7 +275,7 @@ ftp_passive(const char *cmd, struct sockaddr_storage *ss, int family)
 	size_t	 n = 0;
 
 	if (http_debug)
-		printf(">>> %s\n", cmd);
+		fprintf(stderr, ">>> %s\n", cmd);
 
 	if (fprintf(ctrl_fp, "%s\r\n", cmd) < 0)
 		errx(1, "%s: fprintf", __func__);
@@ -316,7 +315,7 @@ ftp_size(const char *fn, off_t *sizep)
 	int	 code;
 
 	if (http_debug)
-		printf(">>> SIZE %s\n", fn);
+		fprintf(stderr, ">>> SIZE %s\n", fn);
 
 	if (fprintf(ctrl_fp, "SIZE %s\r\n", fn) < 0)
 		errx(1, "%s: fprintf", __func__);

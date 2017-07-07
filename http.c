@@ -467,7 +467,7 @@ http_request(int scheme, struct http_headers **headers, const char *fmt, ...)
 		err(1, "%s: vasprintf", __func__);
 
 	if (http_debug)
-		printf("<<< %s\n", req);
+		fprintf(stderr, "<<< %s\n", req);
 
 	if (scheme == S_HTTP) {
 		if (fprintf(fp, "%s\r\n", req) < 0)
@@ -487,7 +487,7 @@ http_request(int scheme, struct http_headers **headers, const char *fmt, ...)
 
 	free(req);
 	if (http_debug)
-		printf(">>> %s", buf);
+		fprintf(stderr, ">>> %s", buf);
 
 	if ((code = http_status_code(buf)) == -1)
 		errx(1, "%s: failed to extract status code", __func__);
@@ -542,7 +542,7 @@ headers_parse(int scheme)
 		}
 
 		if (http_debug)
-			printf(">>> %s\n", buf);
+			fprintf(stderr, ">>> %s\n", buf);
 
 		if (buflen == 0)
 			break; /* end of headers */
