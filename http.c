@@ -130,8 +130,7 @@ static int		 http_request(int, const char *, ...)
 			    __attribute__((__format__ (printf, 2, 3)))
 			    __attribute__((__nonnull__ (2)));
 static ssize_t		 tls_getline(char **, size_t *, struct tls *);
-static char		*relative_path_resolve(const char *,
-			    const char *);
+static char		*relative_path_resolve(const char *, const char *);
 
 static struct http_headers	 headers;
 static struct tls_config	*tls_config;
