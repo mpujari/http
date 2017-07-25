@@ -273,8 +273,8 @@ proxy_connect(struct url *url, FILE *proxy_fp)
 struct url *
 http_get(struct url *url)
 {
-	char			*range;
-	int			 code, redirects = 0;
+	char	*range;
+	int	 code, redirects = 0;
 
  redirected:
 	if (asprintf(&range, "Range: bytes=%lld-\r\n", url->offset) == -1)
@@ -509,10 +509,10 @@ http_status_code(const char *status_line)
 static void
 headers_parse(int scheme)
 {
-	char			*buf = NULL, *p;
-	const char		*e;
-	size_t			 n = 0;
-	ssize_t			 buflen;
+	char		*buf = NULL, *p;
+	const char	*e;
+	size_t		 n = 0;
+	ssize_t		 buflen;
 
 	free(headers.location);
 	memset(&headers, 0, sizeof(headers));
