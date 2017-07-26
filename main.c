@@ -466,7 +466,7 @@ url_parse(char *str)
 	/* Path */
 	p = q;
 	if (p != NULL)
-		path = url_encode(p);
+		path = xstrdup(p, __func__);
 
 	if (http_debug) {
 		fprintf(stderr,

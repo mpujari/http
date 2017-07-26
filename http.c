@@ -273,12 +273,15 @@ proxy_connect(struct url *url, FILE *proxy_fp)
 struct url *
 http_get(struct url *url)
 {
-	char	*range;
+	char	*encoded_path = NULL, *range;
 	int	 code, redirects = 0;
 
  redirected:
 	if (asprintf(&range, "Range: bytes=%lld-\r\n", url->offset) == -1)
 		err(1, "%s: asprintf", __func__);
+
+	if (url->path)
+		encoded_path = url_encode(url->path);
 
 	code = http_request(url->scheme,
 	    "GET %s HTTP/1.0\r\n"
@@ -286,11 +289,12 @@ http_get(struct url *url)
 	    "User-Agent: %s\r\n"
 	    "%s"
 	    "\r\n",
-	    url->path ? url->path : "/",
+	    url->path ? encoded_path : "/",
 	    url->host,
 	    ua,
 	    url->offset ? range : "");
 	free(range);
+	free(encoded_path);
 
 	switch (code) {
 	case 200:
