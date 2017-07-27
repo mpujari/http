@@ -159,7 +159,7 @@ tcp_connect(const char *host, const char *port, int timeout)
 	if (host[0] == '[') {
 		ipv6 = xstrdup(host + 1, __func__);
 		if ((len = strlen(ipv6) == 0))
-		    errx(1, "%s: invalid IPv6 address len: %d", __func__, len);
+		    errx(1, "%s: invalid IPv6 address len: %zu", __func__, len);
 		if (ipv6[len - 1] != ']')
 			errx(1, "%s: invalid IPv6 address: %s", __func__, host);
 		ipv6[len - 1] = '\0';
