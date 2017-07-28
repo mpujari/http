@@ -55,7 +55,6 @@ struct url	*proxy;
 int		 http_debug;
 int		 progressmeter;
 int		 verbose = 1;
-int		 Eflag;
 
 static struct imsgbuf	 child_ibuf;
 static struct imsg	 child_imsg;
@@ -81,16 +80,13 @@ main(int argc, char **argv)
 
 	save_argc = argc;
 	save_argv = argv;
-	while ((ch = getopt(argc, argv, "4aCD:Eo:mMS:s:U:vVw:x")) != -1) {
+	while ((ch = getopt(argc, argv, "4aCD:o:mMS:s:U:vVw:x")) != -1) {
 		switch (ch) {
 		case 'C':
 			resume = 1;
 			break;
 		case 'D':
 			title = optarg;
-			break;
-		case 'E':
-			Eflag = 1;
 			break;
 		case 'o':
 			oarg = optarg;

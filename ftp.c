@@ -37,15 +37,13 @@
 #define N_TRANS	400
 #define	N_PERM	500
 
-static int	ipv4_parse(const char *, struct sockaddr_in *);
-static int	ipv6_parse(const char *, struct sockaddr_in6 *);
-static int	ftp_auth(const char *, const char *);
-static int	ftp_size(const char *, off_t *);
-static int	ftp_getline(char **, size_t *);
-static int	ftp_command(const char *, ...)
+static int	 ftp_auth(const char *, const char *);
+static FILE	*ftp_pasv(void);
+static int	 ftp_size(const char *, off_t *);
+static int	 ftp_getline(char **, size_t *);
+static int	 ftp_command(const char *, ...)
 		    __attribute__((__format__ (printf, 1, 2)))
 		    __attribute__((__nonnull__ (1)));
-static int	ftp_passive(const char *, struct sockaddr_storage *, int);
 
 static FILE	*ctrl_fp;
 static FILE	*data_fp;
@@ -84,11 +82,7 @@ ftp_connect(struct url *url, int timeout)
 struct url *
 ftp_get(struct url *url)
 {
-	struct sockaddr_storage	 ss;
-	socklen_t		 len;
-	char			*dir;
-	const char		*cmd;
-	int			 ctrl_family, sock;
+	char	*dir;
 
 	log_info("Using binary mode to transfer files.\n");
 	if (ftp_command("TYPE I") != P_OK)
@@ -105,28 +99,9 @@ ftp_get(struct url *url)
 	if (ftp_size(url->fname, &url->file_sz) != P_OK)
 		errx(1, "failed to get size of file %s", url->fname);
 
-	len = sizeof(ss);
-	memset(&ss, 0, len);
-	if (getsockname(fileno(ctrl_fp), (struct sockaddr *)&ss, &len) == -1)
-		err(1, "%s: getsockame", __func__);
-
-	ctrl_family = ss.ss_family;
-	cmd = "EPSV";
-	if (Eflag && (ctrl_family == AF_INET))
-		cmd = "PASV";
-
-	memset(&ss, 0, sizeof(ss));
-	if (ftp_passive(cmd, &ss, ctrl_family) != P_OK)
-		return NULL;
-
-	if ((sock = socket(ss.ss_family, SOCK_STREAM, 0)) == -1)
-		err(1, "%s: socket", __func__);
-
-	if (connect(sock, (struct sockaddr *)&ss, ss.ss_len) == -1)
-		err(1, "%s: connect", __func__);
-
-	if ((data_fp = fdopen(sock, "r+")) == NULL)
-		err(1, "%s: fdopen", __func__);
+	/* TODO: EPSV */
+	if ((data_fp = ftp_pasv()) == NULL)
+		errx(1, "error retrieving file %s", url->fname);
 
 	if (ftp_command("RETR %s", url->fname) != P_PRE)
 		errx(1, "error retrieving file %s", url->fname);
@@ -235,75 +210,57 @@ ftp_command(const char *fmt, ...)
 	(((var[(off) + 0] & 0xff) << 24) | ((var[(off) + 1] & 0xff) << 16) | \
 	 ((var[(off) + 2] & 0xff) << 8) | ((var[(off) + 3] & 0xff) << 0))
 
-static int
-ipv4_parse(const char *s, struct sockaddr_in *in)
+static FILE *
+ftp_pasv(void)
 {
-	uint	addr[4], port[2];
-	int	ret;
+	struct sockaddr_in	 sa;
+	char			*buf = NULL, *s, *e;
+	size_t			 n = 0;
+	uint			 addr[4], port[2];
+	int			 ret, sock;
 
+	if (http_debug)
+		fprintf(stderr, ">>> PASV\n");
+
+	if (fprintf(ctrl_fp, "PASV\r\n") < 0)
+		errx(1, "%s: fprintf", __func__);
+
+	(void)fflush(ctrl_fp);
+	if (ftp_getline(&buf, &n) != P_OK) {
+		free(buf);
+		return NULL;
+	}
+
+	if ((s = strchr(buf, '(')) == NULL || (e = strchr(s, ')')) == NULL) {
+		warnx("Malformed PASV reply");
+		return NULL;
+	}
+
+	s++;
+	*e = '\0';
 	ret = sscanf(s, "%u,%u,%u,%u,%u,%u",
 	    &addr[0], &addr[1], &addr[2], &addr[3],
 	    &port[0], &port[1]);
 
 	if (ret != 6) {
 		warnx("Passive mode address scan failure");
-		return 1;
-	}
-
-	in->sin_family = AF_INET;
-	in->sin_len = sizeof(*in);
-	in->sin_addr.s_addr = htonl(pack4(addr, 0));
-	in->sin_port = htons(pack2(port, 0));
-
-	return 0;
-}
-
-static int
-ipv6_parse(const char *s, struct sockaddr_in6 *in6)
-{
-	/* XXX */
-	in6->sin6_family = AF_INET6;
-	in6->sin6_len = sizeof(*in6);
-	return 0;
-}
-
-static int
-ftp_passive(const char *cmd, struct sockaddr_storage *ss, int family)
-{
-	int	 code;
-	char	*buf = NULL, *s, *e;
-	size_t	 n = 0;
-
-	if (http_debug)
-		fprintf(stderr, ">>> %s\n", cmd);
-
-	if (fprintf(ctrl_fp, "%s\r\n", cmd) < 0)
-		errx(1, "%s: fprintf", __func__);
-
-	(void)fflush(ctrl_fp);
-	if ((code = ftp_getline(&buf, &n)) != P_OK) {
-		free(buf);
-		return code;
-	}
-
-	if ((s = strchr(buf, '(')) == NULL || (e = strchr(s, ')')) == NULL)
-		errx(1, "Malformed %s reply", cmd);
-
-	s++;
-	*e = '\0';
-	switch (family) {
-	case AF_INET:
-		if (ipv4_parse(s, (struct sockaddr_in *)ss) != 0)
-			code = N_PERM;
-		break;
-	case AF_INET6:
-		if (ipv6_parse(s, (struct sockaddr_in6 *)ss) != 0)
-			code = N_PERM;
-		break;
+		return NULL;
 	}
 
 	free(buf);
-	return code;
+	memset(&sa, 0, sizeof sa);
+	sa.sin_family = AF_INET;
+	sa.sin_len = sizeof(sa);
+	sa.sin_addr.s_addr = htonl(pack4(addr, 0));
+	sa.sin_port = htons(pack2(port, 0));
+
+	if ((sock = socket(sa.sin_family, SOCK_STREAM, 0)) == -1)
+		err(1, "%s: socket", __func__);
+
+	if (connect(sock, (struct sockaddr *)&sa, sa.sin_len) == -1)
+		err(1, "%s: connect", __func__);
+
+	return fdopen(sock, "r+");
 }
 
 static int

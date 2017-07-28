@@ -76,7 +76,6 @@ extern struct url	*proxy;
 extern int		 http_debug;
 extern int		 progressmeter;
 extern int		 verbose;
-extern int		 Eflag;
 
 struct url	*url_parse(char *);
 void		 url_free(struct url *);
