@@ -38,7 +38,7 @@
 #define	N_PERM	500
 
 static int	 ftp_auth(const char *, const char *);
-static FILE	*ftp_pasv(void);
+static FILE	*ftp_epsv(void);
 static int	 ftp_size(const char *, off_t *);
 static int	 ftp_getline(char **, size_t *);
 static int	 ftp_command(const char *, ...)
@@ -99,8 +99,7 @@ ftp_get(struct url *url)
 	if (ftp_size(url->fname, &url->file_sz) != P_OK)
 		errx(1, "failed to get size of file %s", url->fname);
 
-	/* TODO: EPSV */
-	if ((data_fp = ftp_pasv()) == NULL)
+	if ((data_fp = ftp_epsv()) == NULL)
 		errx(1, "error retrieving file %s", url->fname);
 
 	if (ftp_command("RETR %s", url->fname) != P_PRE)
@@ -117,7 +116,7 @@ ftp_save(struct url *url, int fd)
 	if ((fp = fdopen(fd, "w")) == NULL)
 		err(1, "%s: fdopen", __func__);
 
-	copy_file(url, fp, data_fp);
+	copy_file(url, data_fp, fp);
 	fclose(fp);
 	fclose(data_fp);
 }
@@ -204,25 +203,21 @@ ftp_command(const char *fmt, ...)
 
 }
 
-#define pack2(var, off) \
-	(((var[(off) + 0] & 0xff) << 8) | ((var[(off) + 1] & 0xff) << 0))
-#define pack4(var, off) \
-	(((var[(off) + 0] & 0xff) << 24) | ((var[(off) + 1] & 0xff) << 16) | \
-	 ((var[(off) + 2] & 0xff) << 8) | ((var[(off) + 3] & 0xff) << 0))
-
 static FILE *
-ftp_pasv(void)
+ftp_epsv(void)
 {
-	struct sockaddr_in	 sa;
-	char			*buf = NULL, *s, *e;
+	struct sockaddr_storage	 ss;
+	struct sockaddr_in	*s_in;
+	struct sockaddr_in6	*s_in6;
+	char			*buf = NULL, delim[4], *s, *e;
 	size_t			 n = 0;
-	uint			 addr[4], port[2];
-	int			 ret, sock;
+	socklen_t		 len;
+	int			 port, ret, sock;
 
 	if (http_debug)
-		fprintf(stderr, ">>> PASV\n");
+		fprintf(stderr, ">>> EPSV\n");
 
-	if (fprintf(ctrl_fp, "PASV\r\n") < 0)
+	if (fprintf(ctrl_fp, "EPSV\r\n") < 0)
 		errx(1, "%s: fprintf", __func__);
 
 	(void)fflush(ctrl_fp);
@@ -232,32 +227,47 @@ ftp_pasv(void)
 	}
 
 	if ((s = strchr(buf, '(')) == NULL || (e = strchr(s, ')')) == NULL) {
-		warnx("Malformed PASV reply");
+		warnx("Malformed EPSV reply");
 		return NULL;
 	}
 
 	s++;
 	*e = '\0';
-	ret = sscanf(s, "%u,%u,%u,%u,%u,%u",
-	    &addr[0], &addr[1], &addr[2], &addr[3],
-	    &port[0], &port[1]);
+	if (sscanf(s, "%c%c%c%d%c", &delim[0], &delim[1], &delim[2],
+	    &port, &delim[3]) != 5) {
+		warnx("EPSV parse error");
+		return NULL;
+	}
+	free(buf);
 
-	if (ret != 6) {
-		warnx("Passive mode address scan failure");
+	if (delim[0] != delim[1] || delim[0] != delim[2]
+	    || delim[0] != delim[3]) {
+		warnx("EPSV parse error");
 		return NULL;
 	}
 
-	free(buf);
-	memset(&sa, 0, sizeof sa);
-	sa.sin_family = AF_INET;
-	sa.sin_len = sizeof(sa);
-	sa.sin_addr.s_addr = htonl(pack4(addr, 0));
-	sa.sin_port = htons(pack2(port, 0));
+	len = sizeof(ss);
+	memset(&ss, 0, len);
+	if (getpeername(fileno(ctrl_fp), (struct sockaddr *)&ss, &len) == -1)
+		err(1, "%s: getpeername", __func__);
 
-	if ((sock = socket(sa.sin_family, SOCK_STREAM, 0)) == -1)
+	switch (ss.ss_family) {
+	case AF_INET:
+		s_in = (struct sockaddr_in *)&ss;
+		s_in->sin_port = htons(port);
+		break;
+	case AF_INET6:
+		s_in6 = (struct sockaddr_in6 *)&ss;
+		s_in6->sin6_port = htons(port);
+		break;
+	default:
+		errx(1, "%s: Invalid socket family", __func__);
+	}
+
+	if ((sock = socket(ss.ss_family, SOCK_STREAM, 0)) == -1)
 		err(1, "%s: socket", __func__);
 
-	if (connect(sock, (struct sockaddr *)&sa, sa.sin_len) == -1)
+	if (connect(sock, (struct sockaddr *)&ss, ss.ss_len) == -1)
 		err(1, "%s: connect", __func__);
 
 	return fdopen(sock, "r+");
