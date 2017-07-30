@@ -255,6 +255,9 @@ proxy_connect(struct url *url, FILE *proxy_fp)
 {
 	int	code;
 
+	/* FTP can CONNECT to proxy too */
+	fp = proxy_fp;
+
 	code = http_request(url->scheme,
 	    "CONNECT %s:%s HTTP/1.0\r\n"
 	    "Host: %s\r\n"
