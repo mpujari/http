@@ -38,6 +38,8 @@
 #define N_TRANS	400
 #define	N_PERM	500
 
+#define DATAPORT 5678
+
 static int	ftp_auth(const char *, const char *);
 static int	ftp_eprt(void);
 static int	ftp_epsv(void);
@@ -314,11 +316,11 @@ ftp_eprt(void)
 	switch (ss.ss_family) {
 	case AF_INET:
 		s_in = (struct sockaddr_in *)&ss;
-		s_in->sin_port = htons(5678);
+		s_in->sin_port = htons(DATAPORT);
 		break;
 	case AF_INET6:
 		s_in6 = (struct sockaddr_in6 *)&ss;
-		s_in6->sin6_port = htons(5678);
+		s_in6->sin6_port = htons(DATAPORT);
 		break;
 	}
 
@@ -327,7 +329,7 @@ ftp_eprt(void)
 		err(1, "%s: getnameinfo: %s", __func__, gai_strerror(e));
 
 	if (asprintf(&eprt, "EPRT |%d|%s|%d|", ss.ss_family == AF_INET ? 1 : 2,
-	    addr, 5678) == -1)
+	    addr, DATAPORT) == -1)
 		err(1, "%s: asprintf", __func__);
 
 	ret = ftp_command("%s", eprt);
