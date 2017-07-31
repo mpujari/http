@@ -102,7 +102,8 @@ ftp_get(struct url *url)
 		errx(1, "failed to get size of file %s", url->fname);
 
 	if ((data_fd = ftp_epsv()) == -1)
-		errx(1, "Failed to establish data connection");
+		if ((data_fd = ftp_eprt()) == -1)
+			errx(1, "Failed to establish data connection");
 
 	if (ftp_command("RETR %s", url->fname) != P_PRE)
 		errx(1, "error retrieving file %s", url->fname);
