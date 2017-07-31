@@ -23,6 +23,7 @@
 
 #include <err.h>
 #include <libgen.h>
+#include <netdb.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -48,6 +49,7 @@ static int	ftp_command(const char *, ...)
 
 static FILE	*ctrl_fp;
 static int	 data_fd;
+static int	 activemode;
 
 void
 ftp_connect(struct url *url, int timeout)
@@ -111,9 +113,22 @@ ftp_get(struct url *url)
 void
 ftp_save(struct url *url, int fd)
 {
+	struct sockaddr_storage	 ss;
 	FILE			*data_fp, *fp;
+	socklen_t		 len;
+	int			 s;
+
+	if (activemode) {
+		len = sizeof(ss);
+		if ((s = accept(data_fd, (struct sockaddr *)&ss, &len)) == -1)
+			err(1, "%s: accept", __func__);
+
+		if ((data_fp = fdopen(s, "r")) == NULL)
+			err(1, "%s: fdopen s", __func__);
+	} else {
 		if ((data_fp = fdopen(data_fd, "r")) == NULL)
 			err(1, "%s: fdopen data_fd", __func__);
+	}
 
 	if ((fp = fdopen(fd, "w")) == NULL)
 		err(1, "%s: fdopen", __func__);
@@ -274,6 +289,61 @@ ftp_epsv(void)
 	if (connect(sock, (struct sockaddr *)&ss, ss.ss_len) == -1)
 		err(1, "%s: connect", __func__);
 
+	return sock;
+}
+
+static int
+ftp_eprt(void)
+{
+	struct sockaddr_storage	 ss;
+	struct sockaddr_in	*s_in;
+	struct sockaddr_in6	*s_in6;
+	char			 addr[NI_MAXHOST], *eprt;
+	socklen_t		 len;
+	int			 e, ret, sock;
+
+	len = sizeof(ss);
+	memset(&ss, 0, len);
+	if (getsockname(fileno(ctrl_fp), (struct sockaddr *)&ss, &len) == -1)
+		err(1, "%s: getsockname", __func__);
+
+	if (ss.ss_family != AF_INET && ss.ss_family != AF_INET6)
+		errx(1, "Control connection not on IPv4 or IPv6");
+
+	switch (ss.ss_family) {
+	case AF_INET:
+		s_in = (struct sockaddr_in *)&ss;
+		s_in->sin_port = htons(5678);
+		break;
+	case AF_INET6:
+		s_in6 = (struct sockaddr_in6 *)&ss;
+		s_in6->sin6_port = htons(5678);
+		break;
+	}
+
+	if ((e = getnameinfo((struct sockaddr *)&ss, len, addr, sizeof(addr),
+	    NULL, 0, NI_NUMERICHOST)) != 0)
+		err(1, "%s: getnameinfo: %s", __func__, gai_strerror(e));
+
+	if (asprintf(&eprt, "EPRT |%d|%s|%d|", ss.ss_family == AF_INET ? 1 : 2,
+	    addr, 5678) == -1)
+		err(1, "%s: asprintf", __func__);
+
+	ret = ftp_command("%s", eprt);
+	free(eprt);
+	if (ret != P_OK)
+		return -1;
+
+	if ((sock = socket(ss.ss_family, SOCK_STREAM, 0)) == -1)
+		err(1, "%s: socket", __func__);
+
+	if (bind(sock, (struct sockaddr *)&ss, len) == -1)
+		err(1, "%s: bind", __func__);
+
+	if (listen(sock, 1) == -1)
+		err(1, "%s: listen", __func__);
+
+	activemode = 1;
 	return sock;
 }
 
