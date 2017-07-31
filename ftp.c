@@ -37,16 +37,17 @@
 #define N_TRANS	400
 #define	N_PERM	500
 
-static int	 ftp_auth(const char *, const char *);
-static FILE	*ftp_epsv(void);
-static int	 ftp_size(const char *, off_t *);
-static int	 ftp_getline(char **, size_t *);
-static int	 ftp_command(const char *, ...)
-		    __attribute__((__format__ (printf, 1, 2)))
+static int	ftp_auth(const char *, const char *);
+static int	ftp_eprt(void);
+static int	ftp_epsv(void);
+static int	ftp_size(const char *, off_t *);
+static int	ftp_getline(char **, size_t *);
+static int	ftp_command(const char *, ...)
+		     __attribute__((__format__ (printf, 1, 2)))
 		    __attribute__((__nonnull__ (1)));
 
 static FILE	*ctrl_fp;
-static FILE	*data_fp;
+static int	 data_fd;
 
 void
 ftp_connect(struct url *url, int timeout)
@@ -98,8 +99,8 @@ ftp_get(struct url *url)
 	if (ftp_size(url->fname, &url->file_sz) != P_OK)
 		errx(1, "failed to get size of file %s", url->fname);
 
-	if ((data_fp = ftp_epsv()) == NULL)
-		errx(1, "error retrieving file %s", url->fname);
+	if ((data_fd = ftp_epsv()) == -1)
+		errx(1, "Failed to establish data connection");
 
 	if (ftp_command("RETR %s", url->fname) != P_PRE)
 		errx(1, "error retrieving file %s", url->fname);
@@ -110,7 +111,9 @@ ftp_get(struct url *url)
 void
 ftp_save(struct url *url, int fd)
 {
-	FILE	*fp;
+	FILE			*data_fp, *fp;
+		if ((data_fp = fdopen(data_fd, "r")) == NULL)
+			err(1, "%s: fdopen data_fd", __func__);
 
 	if ((fp = fdopen(fd, "w")) == NULL)
 		err(1, "%s: fdopen", __func__);
@@ -202,7 +205,7 @@ ftp_command(const char *fmt, ...)
 
 }
 
-static FILE *
+static int
 ftp_epsv(void)
 {
 	struct sockaddr_storage	 ss;
@@ -222,12 +225,13 @@ ftp_epsv(void)
 	(void)fflush(ctrl_fp);
 	if (ftp_getline(&buf, &n) != P_OK) {
 		free(buf);
-		return NULL;
+		return -1;
 	}
 
 	if ((s = strchr(buf, '(')) == NULL || (e = strchr(s, ')')) == NULL) {
 		warnx("Malformed EPSV reply");
-		return NULL;
+		free(buf);
+		return -1;
 	}
 
 	s++;
@@ -235,14 +239,15 @@ ftp_epsv(void)
 	if (sscanf(s, "%c%c%c%d%c", &delim[0], &delim[1], &delim[2],
 	    &port, &delim[3]) != 5) {
 		warnx("EPSV parse error");
-		return NULL;
+		free(buf);
+		return -1;
 	}
 	free(buf);
 
 	if (delim[0] != delim[1] || delim[0] != delim[2]
 	    || delim[0] != delim[3]) {
 		warnx("EPSV parse error");
-		return NULL;
+		return -1;
 	}
 
 	len = sizeof(ss);
@@ -269,7 +274,7 @@ ftp_epsv(void)
 	if (connect(sock, (struct sockaddr *)&ss, ss.ss_len) == -1)
 		err(1, "%s: connect", __func__);
 
-	return fdopen(sock, "r+");
+	return sock;
 }
 
 static int
