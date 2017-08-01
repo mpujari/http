@@ -232,7 +232,7 @@ ftp_epsv(void)
 	char			*buf = NULL, delim[4], *s, *e;
 	size_t			 n = 0;
 	socklen_t		 len;
-	int			 port, ret, sock;
+	int			 port, sock;
 
 	if (http_debug)
 		fprintf(stderr, ">>> EPSV\n");
