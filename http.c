@@ -126,9 +126,7 @@ static const char	*http_error(int);
 static struct url	*http_redirect(struct url *, char *);
 static int		 http_status_code(const char *);
 static int		 http_status_cmp(const void *, const void *);
-static int		 http_request(int, const char *, ...)
-			    __attribute__((__format__ (printf, 2, 3)))
-			    __attribute__((__nonnull__ (2)));
+static int		 http_request(int, const char *);
 static ssize_t		 tls_getline(char **, size_t *, struct tls *);
 static char		*relative_path_resolve(const char *, const char *);
 
@@ -253,12 +251,13 @@ http_connect(struct url *url, int timeout)
 void
 proxy_connect(struct url *url, FILE *proxy_fp)
 {
-	int	code;
+	char	*req;
+	int	 code;
 
 	/* FTP can CONNECT to proxy too */
 	fp = proxy_fp;
 
-	code = http_request(url->scheme,
+	if (asprintf(&req,
 	    "CONNECT %s:%s HTTP/1.0\r\n"
 	    "Host: %s\r\n"
 	    "User-Agent: %s\r\n"
@@ -266,8 +265,11 @@ proxy_connect(struct url *url, FILE *proxy_fp)
 	    url->host,
 	    url->port,
 	    url->host,
-	    ua);
+	    ua) == -1)
+		err(1, "%s: asprintf", __func__);
 
+	code = http_request(url->scheme, req);
+	free(req);
 	if (code != 200)
 		errx(1, "%s: failed to CONNECT to %s:%s: %s",
 		    __func__, url->host, url->port, http_error(code));
@@ -276,29 +278,33 @@ proxy_connect(struct url *url, FILE *proxy_fp)
 struct url *
 http_get(struct url *url)
 {
-	char	*encoded_path = NULL, *range;
+	char	*encoded_path = NULL, *range = NULL, *req;
 	int	 code, redirects = 0;
 
  redirected:
-	if (asprintf(&range, "Range: bytes=%lld-\r\n", url->offset) == -1)
-		err(1, "%s: asprintf", __func__);
+	if (url->offset)
+		if (asprintf(&range, "Range: bytes=%lld-", url->offset) == -1)
+			err(1, "%s: asprintf", __func__);
 
 	if (url->path)
 		encoded_path = url_encode(url->path);
 
-	code = http_request(url->scheme,
-	    "GET %s HTTP/1.0\r\n"
+	if (asprintf(&req,
+    	    "GET %s HTTP/1.0\r\n"
 	    "Host: %s\r\n"
 	    "User-Agent: %s\r\n"
-	    "%s"
+	    "%s\r\n"
 	    "\r\n",
 	    url->path ? encoded_path : "/",
 	    url->host,
 	    ua,
-	    url->offset ? range : "");
+	    url->offset ? range : "") == -1)
+		err(1, "%s: asprintf", __func__);
+
+	code = http_request(url->scheme, req);
 	free(range);
 	free(encoded_path);
-
+	free(req);
 	switch (code) {
 	case 200:
 		if (url->offset)
@@ -454,32 +460,25 @@ http_close(struct url *url)
 }
 
 static int
-http_request(int scheme, const char *fmt, ...)
+http_request(int scheme, const char *req)
 {
-	va_list	 ap;
-	char	*req, *buf = NULL;
+	char	*buf = NULL;
 	size_t	 n = 0;
 	ssize_t	 nw;
-	int	 code, r;
-
-	va_start(ap, fmt);
-	r = vasprintf(&req, fmt, ap);
-	va_end(ap);
-	if (r < 0)
-		err(1, "%s: vasprintf", __func__);
+	int	 code;
 
 	if (http_debug)
-		fprintf(stderr, "<<< %s\n", req);
+		fprintf(stderr, "<<< %s", req);
 
 	if (scheme == S_HTTP) {
-		if (fprintf(fp, "%s\r\n", req) < 0)
+		if (fprintf(fp, "%s", req) < 0)
 			errx(1, "%s: fprintf", __func__);
 		(void)fflush(fp);
 		if (getline(&buf, &n, fp) == -1)
 			err(1, "%s: getline", __func__);
 	} else {
 		do {
-			nw = tls_write(ctx, req, r);
+			nw = tls_write(ctx, req, strlen(req));
 		} while (nw == TLS_WANT_POLLIN || nw == TLS_WANT_POLLOUT);
 		if (nw == -1)
 			errx(1, "%s: tls_write", __func__);
@@ -487,7 +486,6 @@ http_request(int scheme, const char *fmt, ...)
 			errx(1, "%s: tls_getline", __func__);
 	}
 
-	free(req);
 	if (http_debug)
 		fprintf(stderr, ">>> %s", buf);
 
