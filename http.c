@@ -283,7 +283,8 @@ http_get(struct url *url)
 
  redirected:
 	if (url->offset)
-		if (asprintf(&range, "Range: bytes=%lld-", url->offset) == -1)
+		if (asprintf(&range, "Range: bytes=%lld-\r\n",
+		    url->offset) == -1)
 			err(1, "%s: asprintf", __func__);
 
 	if (url->path)
@@ -292,13 +293,13 @@ http_get(struct url *url)
 	if (asprintf(&req,
     	    "GET %s HTTP/1.0\r\n"
 	    "Host: %s\r\n"
+	    "%s"
 	    "User-Agent: %s\r\n"
-	    "%s\r\n"
 	    "\r\n",
 	    url->path ? encoded_path : "/",
 	    url->host,
-	    ua,
-	    url->offset ? range : "") == -1)
+	    url->offset ? range : "",
+	    ua) == -1)
 		err(1, "%s: asprintf", __func__);
 
 	code = http_request(url->scheme, req);
