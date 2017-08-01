@@ -46,7 +46,7 @@ static int	ftp_epsv(void);
 static int	ftp_size(const char *, off_t *);
 static int	ftp_getline(char **, size_t *);
 static int	ftp_command(const char *, ...)
-		     __attribute__((__format__ (printf, 1, 2)))
+		    __attribute__((__format__ (printf, 1, 2)))
 		    __attribute__((__nonnull__ (1)));
 
 static FILE	*ctrl_fp;
