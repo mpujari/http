@@ -123,6 +123,7 @@ struct http_headers {
 static void		 headers_parse(int);
 static void		 http_close(struct url *);
 static const char	*http_error(int);
+static ssize_t		 http_getline(int, char **, size_t *);
 static struct url	*http_redirect(struct url *, char *);
 static int		 http_status_code(const char *);
 static int		 http_status_cmp(const void *, const void *);
@@ -523,14 +524,7 @@ headers_parse(int scheme)
 	free(headers.location);
 	memset(&headers, 0, sizeof(headers));
 	for (;;) {
-		if (scheme == S_HTTP) {
-			if ((buflen = getline(&buf, &n, fp)) == -1)
-				err(1, "%s: getline", __func__);
-		} else {
-			if ((buflen = tls_getline(&buf, &n, ctx)) == -1)
-				errx(1, "%s: tls_getline", __func__);
-		}
-
+		buflen = http_getline(scheme, &buf, &n);
 		buf[buflen - 1] = '\0';
 		buflen -= 1;
 		if (buflen > 0 && buf[buflen - 1] == '\r') {
@@ -642,4 +636,20 @@ tls_getline(char **buf, size_t *buflen, struct tls *tls)
 
 	*(*buf + off) = '\0';
 	return off;
+}
+
+static ssize_t
+http_getline(int scheme, char **buf, size_t *n)
+{
+	ssize_t	buflen;
+
+	if (scheme == S_HTTP) {
+		if ((buflen = getline(buf, n, fp)) == -1)
+			err(1, "%s: getline", __func__);
+	} else {
+		if ((buflen = tls_getline(buf, n, ctx)) == -1)
+			errx(1, "%s: tls_getline", __func__);
+	}
+
+	return buflen;
 }
