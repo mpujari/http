@@ -120,6 +120,7 @@ struct http_headers {
 	off_t	 content_length;
 };
 
+static char		*header_lookup(const char *, const char *);
 static void		 headers_parse(int);
 static void		 http_close(struct url *);
 static const char	*http_error(int);
@@ -538,27 +539,32 @@ headers_parse(int scheme)
 		if (buflen == 0)
 			break; /* end of headers */
 
-		if (strncasecmp(buf, "Content-Length: ", 16) == 0) {
-			if ((p = strchr(buf, ' ')) == NULL)
-				errx(1, "Failed to parse Content-Length");
-
-			p++;
+		if ((p = header_lookup(buf, "Content-Length:")) != NULL) {
 			headers.content_length = strtonum(p, 0, INT64_MAX, &e);
 			if (e)
-				err(1, "%s: Content Length is %s: %lld",
+				err(1, "%s: Content-Length is %s: %lld",
 				    __func__, e, headers.content_length);
 		}
 
-		if (strncasecmp(buf, "Location: ", 10) == 0) {
-			if ((p = strchr(buf, ' ')) == NULL)
-				errx(1, "Failed to parse Location");
-
-			headers.location = xstrdup(++p, __func__);
-		}
-
+		if ((p = header_lookup(buf, "Location:")) != NULL)
+			headers.location = xstrdup(p, __func__);
 	}
 
 	free(buf);
+}
+
+static char *
+header_lookup(const char *buf, const char *key)
+{
+	char	*p;
+
+	if (strncasecmp(buf, key, strlen(key)) == 0) {
+		if ((p = strchr(buf, ' ')) == NULL)
+			errx(1, "Failed to parse %s", key);
+		return ++p;
+	}
+
+	return NULL;
 }
 
 static const char *
