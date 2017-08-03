@@ -432,7 +432,7 @@ http_save(struct url *url, int fd)
 		} while (r == TLS_WANT_POLLIN || r == TLS_WANT_POLLOUT);
 
 		if (r == -1)
-			err(1, "%s: tls_read: %s", __func__, tls_error(ctx));
+			errx(1, "%s: tls_read: %s", __func__, tls_error(ctx));
 		else if (r == 0)
 			break;
 
