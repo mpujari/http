@@ -264,7 +264,7 @@ proxy_connect(struct url *url, FILE *proxy_fp)
 	fp = proxy_fp;
 
 	if (asprintf(&req,
-	    "CONNECT %s:%s HTTP/1.0\r\n"
+	    "CONNECT %s:%s HTTP/1.1\r\n"
 	    "Host: %s\r\n"
 	    "User-Agent: %s\r\n"
 	    "\r\n",
@@ -297,9 +297,10 @@ http_get(struct url *url)
 		encoded_path = url_encode(url->path);
 
 	if (asprintf(&req,
-    	    "GET %s HTTP/1.0\r\n"
+    	    "GET %s HTTP/1.1\r\n"
 	    "Host: %s\r\n"
 	    "%s"
+	    "Connection: close\r\n"
 	    "User-Agent: %s\r\n"
 	    "\r\n",
 	    url->path ? encoded_path : "/",
