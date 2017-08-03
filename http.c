@@ -118,14 +118,18 @@ static struct http_status {
 struct http_headers {
 	char	*location;
 	off_t	 content_length;
+	int	 chunked;
 };
 
+static void		 decode_chunk(int, uint, FILE *);
 static char		*header_lookup(const char *, const char *);
 static void		 headers_parse(int);
 static void		 http_close(struct url *);
 static const char	*http_error(int);
 static ssize_t		 http_getline(int, char **, size_t *);
+static ssize_t		 http_read(int, char *, size_t);
 static struct url	*http_redirect(struct url *, char *);
+static void		 http_save_chunks(struct url *, int);
 static int		 http_status_code(const char *);
 static int		 http_status_cmp(const void *, const void *);
 static int		 http_request(int, const char *);
@@ -415,6 +419,11 @@ http_save(struct url *url, int fd)
 	char	*tmp_buf;
 	ssize_t	 r;
 
+	if (headers.chunked) {
+		http_save_chunks(url, fd);
+		return;
+	}
+
 	if ((dst_fp = fdopen(fd, "w")) == NULL)
 		err(1, "%s: fdopen", __func__);
 
@@ -445,6 +454,62 @@ http_save(struct url *url, int fd)
  done:
  	fclose(dst_fp);
 	http_close(url);
+}
+
+static void
+http_save_chunks(struct url *url, int fd)
+{
+	FILE	*dst_fp;
+	char	*buf = NULL;
+	size_t	 n = 0;
+	uint	 chunk_sz, len;
+
+	if ((dst_fp = fdopen(fd, "w")) == NULL)
+		err(1, "%s: fdopen", __func__);
+
+	http_getline(url->scheme, &buf, &n);
+	if (sscanf(buf, "%x", &chunk_sz) != 1)
+		errx(1, "%s: Failed to get chunk size", __func__);
+
+	while (chunk_sz > 0) {
+		decode_chunk(url->scheme, chunk_sz, dst_fp);
+		url->offset += chunk_sz;
+		http_getline(url->scheme, &buf, &n);
+		if (sscanf(buf, "%x", &chunk_sz) != 1)
+			errx(1, "%s: Failed to get chunk size", __func__);
+	}
+
+	free(buf);
+	fclose(dst_fp);
+	http_close(url);
+}
+
+static void
+decode_chunk(int scheme, uint sz, FILE *dst_fp)
+{
+	size_t	bufsz;
+	ssize_t	r;
+	char	buf[BUFSIZ], crlf[2];
+
+	bufsz = sizeof(buf);
+	while (sz > 0) {
+		if (sz < bufsz)
+			bufsz = sz;
+
+		r = http_read(scheme, buf, bufsz);
+		if (fwrite(buf, 1, r, dst_fp) != r)
+			errx(1, "%s: fwrite", __func__);
+
+		sz -= r;
+	}
+
+	/* CRLF terminating the chunk */
+	if (http_read(scheme, crlf, sizeof(crlf)) != sizeof(crlf))
+		errx(1, "%s: Failed to read terminal crlf", __func__);
+
+	if (crlf[0] != '\r' || crlf[1] != '\n')
+		errx(1, "%s: Invalid chunked encoding", __func__);
+
 }
 
 static void
@@ -548,6 +613,10 @@ headers_parse(int scheme)
 
 		if ((p = header_lookup(buf, "Location:")) != NULL)
 			headers.location = xstrdup(p, __func__);
+
+		if ((p = header_lookup(buf, "Transfer-Encoding:")) != NULL)
+			if (strcasestr(p, "chunked") != NULL)
+				headers.chunked = 1;
 	}
 
 	free(buf);
@@ -658,4 +727,24 @@ http_getline(int scheme, char **buf, size_t *n)
 	}
 
 	return buflen;
+}
+
+static ssize_t
+http_read(int scheme, char *buf, size_t size)
+{
+	ssize_t	r;
+
+	if (scheme == S_HTTP) {
+		if ((r = fread(buf, 1, size, fp)) < size)
+			if (!feof(fp))
+				errx(1, "%s: fread", __func__);
+	} else {
+		do {
+			r = tls_read(ctx, buf, size);
+		} while (r == TLS_WANT_POLLIN || r == TLS_WANT_POLLOUT);
+		if (r == -1)
+			errx(1, "%s: tls_read: %s", __func__, tls_error(ctx));
+	}
+
+	return r;
 }
