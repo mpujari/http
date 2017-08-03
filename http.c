@@ -130,7 +130,6 @@ static ssize_t		 http_getline(int, char **, size_t *);
 static ssize_t		 http_read(int, char *, size_t);
 static struct url	*http_redirect(struct url *, char *);
 static void		 http_save_chunks(struct url *, int);
-static int		 http_status_code(const char *);
 static int		 http_status_cmp(const void *, const void *);
 static int		 http_request(int, const char *);
 static ssize_t		 tls_getline(char **, size_t *, struct tls *);
@@ -534,7 +533,7 @@ http_request(int scheme, const char *req)
 	char	*buf = NULL;
 	size_t	 n = 0;
 	ssize_t	 nw;
-	int	 code;
+	uint	 code;
 
 	if (http_debug)
 		fprintf(stderr, "<<< %s", req);
@@ -558,25 +557,14 @@ http_request(int scheme, const char *req)
 	if (http_debug)
 		fprintf(stderr, ">>> %s", buf);
 
-	if ((code = http_status_code(buf)) == -1)
-		errx(1, "%s: failed to extract status code", __func__);
-
-	free(buf);
-	headers_parse(scheme);
-	return code;
-}
-
-static int
-http_status_code(const char *status_line)
-{
-	unsigned int	code;
-
-	if (sscanf(status_line, "%*s %u %*s", &code) != 1)
+	if (sscanf(buf, "%*s %u %*s", &code) != 1)
 		errx(1, "%s: failed to extract status code", __func__);
 
 	if (code < 100 || code > 511)
 		errx(1, "%s: invalid status code %d", __func__, code);
 
+	free(buf);
+	headers_parse(scheme);
 	return code;
 }
 
